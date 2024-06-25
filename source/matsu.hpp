@@ -15,6 +15,7 @@ defined by the Mozilla Public License, v. 2.0.
 
 #include <math.h>
 #include <stdint.h>
+#include <vector>
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wold-style-cast"
@@ -34,10 +35,11 @@ defined by the Mozilla Public License, v. 2.0.
 
 
 // clang-format off
-template <typename T> T Max(T a, T b)      { return (a > b) ? a : b; }
-template <typename T> T Min(T a, T b)      { return (a < b) ? a : b; }
-template <typename T> T Mix(T x, T y, T a) { return x + (y - x) * a; }
-template <typename T> T Sign(T x)          { return (x > 0.0) ? 1.0 : -1.0; }
+template <typename T> T Max(T a, T b)            { return (a > b) ? a : b; }
+template <typename T> T Min(T a, T b)            { return (a < b) ? a : b; }
+template <typename T> T Mix(T x, T y, T a)       { return x + (y - x) * a; }
+template <typename T> T Sign(T x)                { return (x > 0.0) ? 1.0 : -1.0; }
+template <typename T> T Clamp(T v, T min, T max) { return Max(min, Min(v, max)); }
 // clang-format on
 
 
@@ -74,11 +76,6 @@ inline uint64_t Random(uint64_t* state)
 inline double ExponentialEasing(double x, double a)
 {
 	return ((exp(a * fabs(x)) - 1.0) / (exp(a) - 1.0)) * Sign(x);
-}
-
-inline double Square(double x)
-{
-	return (x > M_PI) ? -1.0 : 1.0;
 }
 
 
@@ -298,6 +295,51 @@ class Oscillator
 	double m_feedback;
 	double m_feedback_level_a;
 	double m_feedback_level_b;
+};
+
+
+class SquareOscillator
+{
+  public:
+	SquareOscillator(double frequency, double sampling_frequency)
+	{
+		m_phase = 0.0;
+		m_phase_delta = (frequency / sampling_frequency) * M_PI_TWO;
+	}
+
+	double Step()
+	{
+		m_phase = fmod(m_phase + m_phase_delta, M_PI_TWO);
+		return (m_phase > M_PI) ? -1.0 : 1.0;
+	}
+
+  private:
+	double m_phase;
+	double m_phase_delta;
+};
+
+
+class Delay
+{
+  public:
+	Delay(double duration, double sampling_frequency)
+	{
+		m_buffer.resize(static_cast<size_t>(MillisecondsToSamples(duration, sampling_frequency)), 0.0);
+		m_cursor = 0;
+	}
+
+	double Step(double x)
+	{
+		const size_t c = m_cursor;
+		m_cursor = (m_cursor + 1) % m_buffer.size();
+
+		m_buffer[c] = x;
+		return m_buffer[m_cursor];
+	}
+
+  private:
+	std::vector<double> m_buffer;
+	size_t m_cursor;
 };
 
 #endif

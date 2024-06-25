@@ -19,14 +19,17 @@ endif ()
 ####
 
 
-add_executable("606-kick"  "source/606-kick.cpp")
-add_executable("606-snare" "source/606-snare.cpp")
+add_executable("606-kick"     "source/606-kick.cpp")
+add_executable("606-snare"    "source/606-snare.cpp")
+add_executable("606-hat-open" "source/606-hat-open.cpp")
 
-target_compile_options("606-kick"  PRIVATE ${MATSU_CFLAGS})
-target_compile_options("606-snare" PRIVATE ${MATSU_CFLAGS})
+target_compile_options("606-kick"     PRIVATE ${MATSU_CFLAGS})
+target_compile_options("606-snare"    PRIVATE ${MATSU_CFLAGS})
+target_compile_options("606-hat-open" PRIVATE ${MATSU_CFLAGS})
 
 
 if (CMAKE_BUILD_TYPE STREQUAL "Release")
-	set_target_properties("606-kick"  PROPERTIES INTERPROCEDURAL_OPTIMIZATION True)
-	set_target_properties("606-snare" PROPERTIES INTERPROCEDURAL_OPTIMIZATION True)
+	set_target_properties("606-kick"     PROPERTIES INTERPROCEDURAL_OPTIMIZATION True)
+	set_target_properties("606-snare"    PROPERTIES INTERPROCEDURAL_OPTIMIZATION True)
+	set_target_properties("606-hat-open" PROPERTIES INTERPROCEDURAL_OPTIMIZATION True)
 endif ()
