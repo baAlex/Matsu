@@ -1,0 +1,9 @@
+
+/build/
+/build-debug/
+/build-release/
+
+/dev/
+
+/.vscode/
+/.cache/

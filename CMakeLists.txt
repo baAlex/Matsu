@@ -1,0 +1,32 @@
+
+cmake_minimum_required(VERSION 3.16)
+project("Matsu" CXX)
+
+
+####
+set(CMAKE_CXX_STANDARD 14)
+if (MSVC)
+	add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
+	set(MATSU_CFLAGS /W4)
+endif ()
+if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang" OR "${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
+	set(MATSU_CFLAGS -Wall -Wextra -pedantic -Wconversion -Wold-style-cast)
+endif ()
+if (NOT CMAKE_BUILD_TYPE STREQUAL "Release" AND "${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined")
+	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=undefined")
+endif ()
+####
+
+
+add_executable("606-kick"  "source/606-kick.cpp")
+add_executable("606-snare" "source/606-snare.cpp")
+
+target_compile_options("606-kick"  PRIVATE ${MATSU_CFLAGS})
+target_compile_options("606-snare" PRIVATE ${MATSU_CFLAGS})
+
+
+if (CMAKE_BUILD_TYPE STREQUAL "Release")
+	set_target_properties("606-kick"  PROPERTIES INTERPROCEDURAL_OPTIMIZATION True)
+	set_target_properties("606-snare" PROPERTIES INTERPROCEDURAL_OPTIMIZATION True)
+endif ()
