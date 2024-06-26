@@ -2,6 +2,17 @@
 (Hama)Matsu! [浜松]
 ==================
 
+Synthesized TR-606 drum machine. Done so far:
+
+- [x] Kick
+- [x] Snare
+- [ ] Open hat
+- [ ] Closed hat
+- [ ] Low tom
+- [ ] High tom
+- [ ] Cymbal
+- [ ] Accentuated versions
+
 
 Clone and compile
 -----------------

@@ -17,14 +17,21 @@ defined by the Mozilla Public License, v. 2.0.
 #include <stdint.h>
 #include <vector>
 
+#ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wold-style-cast"
 #pragma clang diagnostic ignored "-Wsign-conversion"
 #pragma clang diagnostic ignored "-Wimplicit-int-conversion"
 #pragma clang diagnostic ignored "-Wimplicit-int-float-conversion"
+
 #define DR_WAV_IMPLEMENTATION
 #include "thirdparty/dr_libs/dr_wav.h"
 #pragma clang diagnostic pop
+
+#else
+#define DR_WAV_IMPLEMENTATION
+#include "thirdparty/dr_libs/dr_wav.h"
+#endif
 
 
 #ifndef M_PI
