@@ -85,6 +85,14 @@ inline double ExponentialEasing(double x, double a)
 	return ((exp(a * fabs(x)) - 1.0) / (exp(a) - 1.0)) * Sign(x);
 }
 
+inline double Distortion(double x, double d, double asymmetry)
+{
+	if (x > 0.0)
+		return (exp(x * d) - 1.0) / (exp(d) - 1.0);
+
+	return -((exp(-x * d * (1.0 / asymmetry)) - 1.0) / (exp(d * (1.0 / asymmetry)) - 1.0)) * asymmetry;
+}
+
 
 enum class FilterType
 {
@@ -323,30 +331,6 @@ class SquareOscillator
   private:
 	double m_phase;
 	double m_phase_delta;
-};
-
-
-class Delay
-{
-  public:
-	Delay(double duration, double sampling_frequency)
-	{
-		m_buffer.resize(static_cast<size_t>(MillisecondsToSamples(duration, sampling_frequency)), 0.0);
-		m_cursor = 0;
-	}
-
-	double Step(double x)
-	{
-		const size_t c = m_cursor;
-		m_cursor = (m_cursor + 1) % m_buffer.size();
-
-		m_buffer[c] = x;
-		return m_buffer[m_cursor];
-	}
-
-  private:
-	std::vector<double> m_buffer;
-	size_t m_cursor;
 };
 
 #endif
