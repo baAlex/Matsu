@@ -18,34 +18,32 @@ static int RenderHatOpen(double sampling_frequency, double** out)
 	auto envelope_long = AdEnvelope(0.0, 1500.0, sampling_frequency);
 	auto envelope_short = AdEnvelope(0.0, 900.0, sampling_frequency);
 
-	auto oscillator_1 = SquareOscillator(245.0, sampling_frequency);
+	auto oscillator_1 = SquareOscillator(619.0, sampling_frequency);
 	auto oscillator_2 = SquareOscillator(415.0, sampling_frequency);
-	auto oscillator_3 = SquareOscillator(306.0, sampling_frequency);
-	auto oscillator_4 = SquareOscillator(437.0, sampling_frequency);
-	auto oscillator_5 = SquareOscillator(365.0, sampling_frequency);
-	auto oscillator_6 = SquareOscillator(619.0, sampling_frequency);
+	auto oscillator_3 = SquareOscillator(437.0, sampling_frequency);
+	auto oscillator_4 = SquareOscillator(365.0, sampling_frequency);
+	auto oscillator_5 = SquareOscillator(306.0, sampling_frequency);
+	auto oscillator_6 = SquareOscillator(245.0, sampling_frequency);
 
-	auto o1 = Oscillator(2000.0, 2000.0, 0.0, 0.0, 1500.0, sampling_frequency);
-	auto o2 = Oscillator(7500.0, 7500.0, 0.0, 0.0, 1500.0, sampling_frequency);
-	auto o3 = Oscillator(8400.0, 8400.0, 0.0, 0.0, 1500.0, sampling_frequency);
-	auto o4 = Oscillator(6150.0, 6150.0, 0.0, 0.0, 1500.0, sampling_frequency);
-
-	auto o5 = Oscillator(3300.0, 3300.0, 0.0, 0.0, 1500.0, sampling_frequency);
-	auto o6 = Oscillator(4800.0, 4800.0, 0.0, 0.0, 1500.0, sampling_frequency);
-	auto o7 = Oscillator(5500.0, 5500.0, 0.0, 0.0, 1500.0, sampling_frequency);
-	auto o8 = Oscillator(1200.0, 1200.0, 0.0, 0.0, 1500.0, sampling_frequency);
+	auto o1 = Oscillator(7502.0, 7502.0, 0.0, 0.0, 1500.0, sampling_frequency);
+	auto o2 = Oscillator(6149.0, 6149.0, 0.0, 0.0, 1500.0, sampling_frequency);
+	auto o3 = Oscillator(5552.0, 5552.0, 0.0, 0.0, 1500.0, sampling_frequency);
+	auto o4 = Oscillator(4746.0, 4746.0, 0.0, 0.0, 1500.0, sampling_frequency);
+	auto o5 = Oscillator(3363.0, 3363.0, 0.0, 0.0, 1500.0, sampling_frequency);
+	auto o6 = Oscillator(1094.0, 1094.0, 0.0, 0.0, 1500.0, sampling_frequency);
 
 	auto noise = NoiseGenerator();
 
 	// Peculiar bandpass (12 lp and 24 hp, components)
-	auto bp_a = TwoPolesFilter<FilterType::Lowpass>(6300.0, 0.6, sampling_frequency); // 6000, 6700
-	auto bp_b = TwoPolesFilter<FilterType::Highpass>(6300.0, 0.6, sampling_frequency);
-	auto bp_c = TwoPolesFilter<FilterType::Highpass>(6300.0, 0.6, sampling_frequency);
-	auto hp = TwoPolesFilter<FilterType::Highpass>(6300.0, 0.6, sampling_frequency);
+	auto bp_a = TwoPolesFilter<FilterType::Lowpass>(6100.0, 0.6, sampling_frequency); // 6000, 6700
+	auto bp_b = TwoPolesFilter<FilterType::Highpass>(6100.0, 0.6, sampling_frequency);
+	auto bp_c = TwoPolesFilter<FilterType::Highpass>(6100.0, 0.6, sampling_frequency);
+	auto hp = TwoPolesFilter<FilterType::Highpass>(6100.0, 0.6, sampling_frequency);
+	auto lp = TwoPolesFilter<FilterType::Lowpass>(17000.0, 0.5, sampling_frequency); // Too digital otherwise
 
-	const double short_gain = 1.0;
-	const double long_gain = 0.8;
-	const double clink_gain = 0.75;
+	const double short_gain = 0.95;
+	const double long_gain = 0.85;
+	const double clink_gain = 0.65;
 
 	// Render
 	for (int x = 0; x < Max(envelope_long.GetTotalSamples(), envelope_short.GetTotalSamples()); x += 1)
@@ -70,8 +68,8 @@ static int RenderHatOpen(double sampling_frequency, double** out)
 
 			// Clink
 			const auto easing = [](double x) { return x; };
-			metallic += (o1.Step(easing) + o2.Step(easing) + o3.Step(easing) + o4.Step(easing) + //
-			             o5.Step(easing) + o6.Step(easing) + o7.Step(easing) + o8.Step(easing)) *
+			metallic += (o1.Step(easing) + o2.Step(easing) + o3.Step(easing) + //
+			             o4.Step(easing) + o5.Step(easing) + o6.Step(easing)) *
 			            0.05 * clink_gain;
 
 			// Bandpass
@@ -84,19 +82,19 @@ static int RenderHatOpen(double sampling_frequency, double** out)
 		double l;
 		{
 			// Distortion
-			l = Distortion(metallic, -8.0, 0.4);
+			l = Distortion(metallic, -8.0, 0.3);
 		}
 
 		// Short tsss
 		double s;
 		{
 			// Distortion
-			s = Distortion(metallic, -4.0, 0.8);
+			s = Distortion(metallic, -6.0, 0.5);
 		}
 
 		// Mix
-		**out = hp.Step((l * e_l * long_gain) + (s * e_s * short_gain)) + (noise.Step() * 0.04 * e_s) +
-		        (noise.Step() * 0.00125 * e_l);
+		**out = lp.Step(hp.Step((l * e_l * long_gain) + (s * e_s * short_gain)) + (noise.Step() * 0.06 * e_s) +
+		                (noise.Step() * 0.00125 * e_l));
 		**out = Clamp(**out, -1.0, 1.0);
 		*out += 1;
 	}
