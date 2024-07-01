@@ -16,7 +16,7 @@ defined by the Mozilla Public License, v. 2.0.
 static int RenderHatOpen(double sampling_frequency, double** out)
 {
 	auto envelope_long = AdEnvelope(0.0, 1500.0, sampling_frequency);
-	auto envelope_short = AdEnvelope(0.0, 900.0, sampling_frequency);
+	auto envelope_short = AdEnvelope(0.0, 500.0, sampling_frequency);
 
 	auto oscillator_1 = SquareOscillator(619.0, sampling_frequency);
 	auto oscillator_2 = SquareOscillator(437.0, sampling_frequency);
@@ -34,18 +34,19 @@ static int RenderHatOpen(double sampling_frequency, double** out)
 
 	auto noise = NoiseGenerator();
 
-	// Peculiar bandpass (12 lp and 24 hp, components)
-	auto bp_a = TwoPolesFilter<FilterType::Lowpass>(6100.0, 0.6, sampling_frequency); // 6000, 6700
-	auto bp_b = TwoPolesFilter<FilterType::Highpass>(6100.0, 0.6, sampling_frequency);
-	auto bp_c = TwoPolesFilter<FilterType::Highpass>(6100.0, 0.6, sampling_frequency);
+	// Peculiar bandpass (12db lp and 24db hp, components)
+	auto bp_a = TwoPolesFilter<FilterType::Lowpass>(6600.0, 0.6, sampling_frequency); // 6000, 6700
+	auto bp_b = TwoPolesFilter<FilterType::Highpass>(6600.0, 0.5, sampling_frequency);
+	auto bp_c = TwoPolesFilter<FilterType::Highpass>(6600.0, 0.5, sampling_frequency);
 
-	// This two after envelopes
-	auto hp = TwoPolesFilter<FilterType::Highpass>(6100.0, 0.6, sampling_frequency);
-	auto lp = TwoPolesFilter<FilterType::Lowpass>(17000.0, 0.5, sampling_frequency); // Too digital otherwise
+	// These two after envelope
+	auto hp = TwoPolesFilter<FilterType::Highpass>(6000.0, 0.5, sampling_frequency);
+	auto lp = OnePoleFilter<FilterType::Lowpass>(7800.0, sampling_frequency); // Too digital otherwise
 
-	const double short_gain = 0.95;
-	const double long_gain = 0.85;
-	const double clink_gain = 0.65;
+	const double short_gain = 1.4 * 0.75;
+	const double long_gain = 1.85 * 0.75;
+	const double clink_gain = 1.0 * 0.75;
+	const double noise_gain = 0.8 * 0.75;
 
 	// Render
 	for (int x = 0; x < Max(envelope_long.GetTotalSamples(), envelope_short.GetTotalSamples()); x += 1)
@@ -56,9 +57,9 @@ static int RenderHatOpen(double sampling_frequency, double** out)
 		    [](double x) { return ExponentialEasing(x, 2.5); });
 
 		const double e_s = envelope_short.Get(
-		    x,                                                    //
-		    [](double x) { return x; },                           //
-		    [](double x) { return ExponentialEasing(x, 15.0); }); // 10, 20
+		    x,                                                   //
+		    [](double x) { return x; },                          //
+		    [](double x) { return ExponentialEasing(x, 9.0); }); // 10, 20
 
 		// Metallic signal
 		double metallic;
@@ -95,8 +96,8 @@ static int RenderHatOpen(double sampling_frequency, double** out)
 		}
 
 		// Mix
-		**out = lp.Step(hp.Step((l * e_l * long_gain) + (s * e_s * short_gain)) + (noise.Step() * 0.06 * e_s) +
-		                (noise.Step() * 0.00125 * e_l));
+		**out = lp.Step(hp.Step((l * e_l * long_gain) + (s * e_s * short_gain)) +
+		                (noise.Step() * 0.06 * noise_gain * e_s) + (noise.Step() * 0.00125 * noise_gain * e_l));
 		**out = Clamp(**out, -1.0, 1.0);
 		*out += 1;
 	}

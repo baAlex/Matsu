@@ -33,18 +33,18 @@ static int RenderHatClosed(double sampling_frequency, double** out)
 
 	auto noise = NoiseGenerator();
 
-	// Peculiar bandpass (12 lp and 24 hp, components)
-	auto bp_a = TwoPolesFilter<FilterType::Lowpass>(6250.0, 0.6, sampling_frequency); // 6000, 6700
-	auto bp_b = TwoPolesFilter<FilterType::Highpass>(6250.0, 0.6, sampling_frequency);
-	auto bp_c = TwoPolesFilter<FilterType::Highpass>(6250.0, 0.6, sampling_frequency);
+	// Peculiar bandpass (12db lp and 24db hp, components)
+	auto bp_a = TwoPolesFilter<FilterType::Lowpass>(6600.0, 0.6, sampling_frequency); // 6000, 6700
+	auto bp_b = TwoPolesFilter<FilterType::Highpass>(6600.0, 0.5, sampling_frequency);
+	auto bp_c = TwoPolesFilter<FilterType::Highpass>(6600.0, 0.5, sampling_frequency);
 
-	// This two after envelope
-	auto hp = TwoPolesFilter<FilterType::Highpass>(6250.0, 0.6, sampling_frequency);
-	auto lp = TwoPolesFilter<FilterType::Lowpass>(17000.0, 0.5, sampling_frequency); // Too digital otherwise
+	// These two after envelope
+	auto hp = TwoPolesFilter<FilterType::Highpass>(6000.0, 0.5, sampling_frequency);
+	auto lp = OnePoleFilter<FilterType::Lowpass>(7800.0, sampling_frequency); // Too digital otherwise
 
-	const double tss_gain = 0.95 * 2.0;
-	const double clink_gain = 0.4 * 2.0;
-	const double noise_gain = 0.4 * 2.0;
+	const double tss_gain = 3.0;
+	const double clink_gain = 0.72;
+	const double noise_gain = 1.2;
 
 	// Render
 	for (int x = 0; x < envelope.GetTotalSamples(); x += 1)
