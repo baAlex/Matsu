@@ -1,0 +1,24 @@
+
+<control>
+label_cc100=Kick vol
+set_cc100=64
+
+label_cc101=Snare vol
+set_cc101=64
+
+label_cc102=Hat closed vol
+set_cc102=30
+
+label_cc103=Hat open vol
+set_cc103=35
+
+<group> group=1 volume=-24 loop_mode=one_shot
+<region> sample=606-kick.wav  key=B0 volume_oncc100=48
+<region> sample=606-kick.wav  key=C1 volume_oncc100=48
+<region> sample=606-snare.wav key=D1 volume_oncc101=48
+<region> sample=606-snare.wav key=E1 volume_oncc101=48
+
+<group> group=2 off_by=2 volume=-24 loop_mode=one_shot off_mode=normal ampeg_release=0.07
+<region> sample=606-hat-closed.wav key=Gb1 volume_oncc102=48
+<region> sample=606-hat-closed.wav key=Ab1 volume_oncc102=48
+<region> sample=606-hat-open.wav   key=Bb1 volume_oncc103=48

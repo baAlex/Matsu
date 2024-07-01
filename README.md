@@ -6,8 +6,8 @@ Synthesized TR-606 samples. Done so far:
 
 - [x] Kick
 - [x] Snare
+- [x] Closed hat
 - [x] Open hat
-- [ ] Closed hat
 - [ ] Low tom
 - [ ] High tom
 - [ ] Cymbal

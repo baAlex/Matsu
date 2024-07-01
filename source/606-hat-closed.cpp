@@ -13,10 +13,9 @@ defined by the Mozilla Public License, v. 2.0.
 #include "matsu.hpp"
 
 
-static int RenderHatOpen(double sampling_frequency, double** out)
+static int RenderHatClosed(double sampling_frequency, double** out)
 {
-	auto envelope_long = AdEnvelope(0.0, 1500.0, sampling_frequency);
-	auto envelope_short = AdEnvelope(0.0, 900.0, sampling_frequency);
+	auto envelope = AdEnvelope(0.0, 140.0, sampling_frequency);
 
 	auto oscillator_1 = SquareOscillator(619.0, sampling_frequency);
 	auto oscillator_2 = SquareOscillator(437.0, sampling_frequency);
@@ -35,30 +34,25 @@ static int RenderHatOpen(double sampling_frequency, double** out)
 	auto noise = NoiseGenerator();
 
 	// Peculiar bandpass (12 lp and 24 hp, components)
-	auto bp_a = TwoPolesFilter<FilterType::Lowpass>(6100.0, 0.6, sampling_frequency); // 6000, 6700
-	auto bp_b = TwoPolesFilter<FilterType::Highpass>(6100.0, 0.6, sampling_frequency);
-	auto bp_c = TwoPolesFilter<FilterType::Highpass>(6100.0, 0.6, sampling_frequency);
+	auto bp_a = TwoPolesFilter<FilterType::Lowpass>(6250.0, 0.6, sampling_frequency); // 6000, 6700
+	auto bp_b = TwoPolesFilter<FilterType::Highpass>(6250.0, 0.6, sampling_frequency);
+	auto bp_c = TwoPolesFilter<FilterType::Highpass>(6250.0, 0.6, sampling_frequency);
 
-	// This two after envelopes
-	auto hp = TwoPolesFilter<FilterType::Highpass>(6100.0, 0.6, sampling_frequency);
+	// This two after envelope
+	auto hp = TwoPolesFilter<FilterType::Highpass>(6250.0, 0.6, sampling_frequency);
 	auto lp = TwoPolesFilter<FilterType::Lowpass>(17000.0, 0.5, sampling_frequency); // Too digital otherwise
 
-	const double short_gain = 0.95;
-	const double long_gain = 0.85;
-	const double clink_gain = 0.65;
+	const double tss_gain = 0.95 * 2.0;
+	const double clink_gain = 0.4 * 2.0;
+	const double noise_gain = 0.4 * 2.0;
 
 	// Render
-	for (int x = 0; x < Max(envelope_long.GetTotalSamples(), envelope_short.GetTotalSamples()); x += 1)
+	for (int x = 0; x < envelope.GetTotalSamples(); x += 1)
 	{
-		const double e_l = envelope_long.Get(
-		    x,                          //
-		    [](double x) { return x; }, //
-		    [](double x) { return ExponentialEasing(x, 2.5); });
-
-		const double e_s = envelope_short.Get(
-		    x,                                                    //
-		    [](double x) { return x; },                           //
-		    [](double x) { return ExponentialEasing(x, 15.0); }); // 10, 20
+		const double e = envelope.Get(
+		    x,                                                   //
+		    [](double x) { return x; },                          //
+		    [](double x) { return ExponentialEasing(x, 9.0); }); // 10, 20
 
 		// Metallic signal
 		double metallic;
@@ -80,23 +74,15 @@ static int RenderHatOpen(double sampling_frequency, double** out)
 			metallic = Clamp(metallic * 8.0, -1.0, 1.0); // Normalize and clip it
 		}
 
-		// Long tsss
-		double l;
+		// Tsss
+		double tss;
 		{
 			// Distortion
-			l = Distortion(metallic, -8.0, 0.3);
-		}
-
-		// Short tsss
-		double s;
-		{
-			// Distortion
-			s = Distortion(metallic, -6.0, 0.5);
+			tss = Distortion(metallic, -6.0, 0.5);
 		}
 
 		// Mix
-		**out = lp.Step(hp.Step((l * e_l * long_gain) + (s * e_s * short_gain)) + (noise.Step() * 0.06 * e_s) +
-		                (noise.Step() * 0.00125 * e_l));
+		**out = lp.Step(hp.Step((tss * e * tss_gain)) + (noise.Step() * 0.06 * e * noise_gain));
 		**out = Clamp(**out, -1.0, 1.0);
 		*out += 1;
 	}
@@ -112,7 +98,7 @@ static double buffer[static_cast<size_t>(SAMPLING_FREQUENCY) * 2];
 int main()
 {
 	double* cursor = buffer;
-	RenderHatOpen(SAMPLING_FREQUENCY, &cursor);
+	RenderHatClosed(SAMPLING_FREQUENCY, &cursor);
 
 	{
 		drwav_data_format format;
@@ -123,7 +109,7 @@ int main()
 		format.bitsPerSample = 64;
 
 		drwav wav;
-		drwav_init_file_write(&wav, "606-hat-open.wav", &format, nullptr);
+		drwav_init_file_write(&wav, "606-hat-closed.wav", &format, nullptr);
 		drwav_write_pcm_frames(&wav, static_cast<drwav_uint64>(cursor - buffer), buffer);
 		drwav_uninit(&wav);
 	}
