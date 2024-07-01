@@ -333,4 +333,62 @@ class SquareOscillator
 	double m_phase_delta;
 };
 
+
+inline void ExportS24(const double* input, double sampling_frequency, size_t length, const char* filename)
+{
+	auto export_buffer = reinterpret_cast<uint8_t*>(malloc(sizeof(uint8_t) * 3 * length));
+	if (export_buffer == nullptr)
+		return;
+
+	// Convert to s24
+	{
+		uint8_t* out = export_buffer;
+		uint32_t conversion;
+		for (const double* in = input; in < (input + length); in += 1)
+		{
+			const auto v = static_cast<int32_t>((*in) * 127.0 * 8388607.0);
+			memcpy(&conversion, &v, sizeof(int32_t));
+			conversion >>= 7;
+
+			*out++ = static_cast<uint8_t>((conversion >> 0) & 0xFF);
+			*out++ = static_cast<uint8_t>((conversion >> 8) & 0xFF);
+			*out++ = static_cast<uint8_t>((conversion >> 16) & 0xFF);
+		}
+	}
+
+	// Encode
+	{
+		drwav_data_format format;
+		format.container = drwav_container_riff;
+		format.format = DR_WAVE_FORMAT_PCM;
+		format.channels = 1;
+		format.sampleRate = static_cast<drwav_uint32>(sampling_frequency);
+		format.bitsPerSample = 24;
+
+		drwav wav;
+		drwav_init_file_write(&wav, filename, &format, nullptr);
+		drwav_write_pcm_frames(&wav, static_cast<drwav_uint64>(length), export_buffer);
+		drwav_uninit(&wav);
+	}
+
+	// Bye!
+	free(export_buffer);
+}
+
+
+inline void ExportF64(const double* input, double sampling_frequency, size_t length, const char* filename)
+{
+	drwav_data_format format;
+	format.container = drwav_container_riff;
+	format.format = DR_WAVE_FORMAT_IEEE_FLOAT;
+	format.channels = 1;
+	format.sampleRate = static_cast<drwav_uint32>(sampling_frequency);
+	format.bitsPerSample = 64;
+
+	drwav wav;
+	drwav_init_file_write(&wav, filename, &format, nullptr);
+	drwav_write_pcm_frames(&wav, static_cast<drwav_uint64>(length), input);
+	drwav_uninit(&wav);
+}
+
 #endif

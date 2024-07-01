@@ -13,12 +13,12 @@ label_cc103=Hat open vol
 set_cc103=35
 
 <group> group=1 volume=-24 loop_mode=one_shot
-<region> sample=606-kick.wav  key=B0 volume_oncc100=48
-<region> sample=606-kick.wav  key=C1 volume_oncc100=48
-<region> sample=606-snare.wav key=D1 volume_oncc101=48
-<region> sample=606-snare.wav key=E1 volume_oncc101=48
+<region> sample=606-kick.flac  key=B0 volume_oncc100=48
+<region> sample=606-kick.flac  key=C1 volume_oncc100=48
+<region> sample=606-snare.flac key=D1 volume_oncc101=48
+<region> sample=606-snare.flac key=E1 volume_oncc101=48
 
 <group> group=2 off_by=2 volume=-24 loop_mode=one_shot off_mode=normal ampeg_release=0.07
-<region> sample=606-hat-closed.wav key=Gb1 volume_oncc102=48
-<region> sample=606-hat-closed.wav key=Ab1 volume_oncc102=48
-<region> sample=606-hat-open.wav   key=Bb1 volume_oncc103=48
+<region> sample=606-hat-closed.flac key=Gb1 volume_oncc102=48
+<region> sample=606-hat-closed.flac key=Ab1 volume_oncc102=48
+<region> sample=606-hat-open.flac   key=Bb1 volume_oncc103=48

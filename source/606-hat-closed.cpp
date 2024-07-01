@@ -93,26 +93,15 @@ static int RenderHatClosed(double sampling_frequency, double** out)
 
 
 static constexpr double SAMPLING_FREQUENCY = 44100.0;
-static double buffer[static_cast<size_t>(SAMPLING_FREQUENCY) * 2];
+static double render_buffer[static_cast<size_t>(SAMPLING_FREQUENCY) * 2];
 
 int main()
 {
-	double* cursor = buffer;
+	double* cursor = render_buffer;
 	RenderHatClosed(SAMPLING_FREQUENCY, &cursor);
 
-	{
-		drwav_data_format format;
-		format.container = drwav_container_riff;
-		format.format = DR_WAVE_FORMAT_IEEE_FLOAT;
-		format.channels = 1;
-		format.sampleRate = static_cast<drwav_uint32>(SAMPLING_FREQUENCY);
-		format.bitsPerSample = 64;
-
-		drwav wav;
-		drwav_init_file_write(&wav, "606-hat-closed.wav", &format, nullptr);
-		drwav_write_pcm_frames(&wav, static_cast<drwav_uint64>(cursor - buffer), buffer);
-		drwav_uninit(&wav);
-	}
+	ExportS24(render_buffer, SAMPLING_FREQUENCY, static_cast<size_t>(cursor - render_buffer), "606-hat-closed.wav");
+	ExportF64(render_buffer, SAMPLING_FREQUENCY, static_cast<size_t>(cursor - render_buffer), "606-hat-closed-64.wav");
 
 	return 0;
 }
