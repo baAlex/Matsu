@@ -12,11 +12,23 @@ set_cc102=30
 label_cc103=Hat open vol
 set_cc103=35
 
+label_cc104=Tom low vol
+set_cc104=64
+
+label_cc105=Tom high vol
+set_cc105=64
+
 <group> group=1 volume=-24 loop_mode=one_shot
-<region> sample=606-kick.flac  key=B0 volume_oncc100=48
-<region> sample=606-kick.flac  key=C1 volume_oncc100=48
-<region> sample=606-snare.flac key=D1 volume_oncc101=48
-<region> sample=606-snare.flac key=E1 volume_oncc101=48
+<region> sample=606-kick.flac     key=B0 volume_oncc100=48
+<region> sample=606-kick.flac     key=C1 volume_oncc100=48
+<region> sample=606-snare.flac    key=D1 volume_oncc101=48
+<region> sample=606-snare.flac    key=E1 volume_oncc101=48
+<region> sample=606-tom-low.flac  key=F1 volume_oncc104=48
+<region> sample=606-tom-low.flac  key=G1 volume_oncc104=48
+<region> sample=606-tom-low.flac  key=A1 volume_oncc104=48
+<region> sample=606-tom-high.flac key=B1 volume_oncc105=48
+<region> sample=606-tom-high.flac key=C2 volume_oncc105=48
+<region> sample=606-tom-high.flac key=D2 volume_oncc105=48
 
 <group> group=2 off_by=2 volume=-24 loop_mode=one_shot off_mode=normal ampeg_release=0.07
 <region> sample=606-hat-closed.flac key=Gb1 volume_oncc102=48
