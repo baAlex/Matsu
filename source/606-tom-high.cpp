@@ -15,19 +15,37 @@ defined by the Mozilla Public License, v. 2.0.
 
 static int RenderTomHigh(double sampling_frequency, double** out)
 {
+	auto click = AdEnvelope(SamplesToMilliseconds(10, sampling_frequency),
+	                        SamplesToMilliseconds(40, sampling_frequency), sampling_frequency);
+
 	auto envelope_o = AdEnvelope(0.0, 280.0, sampling_frequency);
 	auto envelope_n = AdEnvelope(0.0, 60.0, sampling_frequency);
 
-	auto oscillator = Oscillator(200.0, 195.0, 0.2, 0.0, 280.0, sampling_frequency); // 190, 200
+	auto oscillator = Oscillator(200.0, 190.0, 0.2, 0.0, 280.0, sampling_frequency); // 190, 210 / 190, 210
 
 	auto noise = NoiseGenerator();
-	auto lp = OnePoleFilter<FilterType::Lowpass>(1000.0, sampling_frequency);
+	auto lp = OnePoleFilter<FilterType::Lowpass>(700.0, sampling_frequency);
 
-	const double noise_gain = 0.13;
+	const double noise_gain = 0.16;
 	const double oscillator_gain = 1.0;
 
 	// Render
-	for (int x = 0; x < envelope_o.GetTotalSamples(); x += 1)
+	for (int x = 0; x < click.GetTotalSamples(); x += 1)
+	{
+		const double e1 = 0.5;
+		const double e2 = -4.0;
+
+		const double signal = click.Get(
+		    x,                                                      //
+		    [&](double x) { return pow(sin(x * 0.5 * M_PI), e1); }, //
+		    [&](double x)
+		    { return ((pow(2.0, e2 * x) - 1.0) / (pow(2.0, e2) - 1.0)) * (1.0 - x) + sin(x * 0.5 * M_PI) * x; });
+
+		**out = -signal * 0.65;
+		*out += 1;
+	}
+
+	for (int x = 0; x < Max(envelope_o.GetTotalSamples(), envelope_n.GetTotalSamples()); x += 1)
 	{
 		const double e_o = envelope_o.Get(
 		    x,                          //
