@@ -15,37 +15,39 @@ defined by the Mozilla Public License, v. 2.0.
 
 static int RenderTomHigh(double sampling_frequency, double** out)
 {
-	auto envelope = AdEnvelope(0.0, 280.0, sampling_frequency);
+	auto envelope_o = AdEnvelope(0.0, 280.0, sampling_frequency);
+	auto envelope_n = AdEnvelope(0.0, 60.0, sampling_frequency);
 
-	auto oscillator = Oscillator(240.0, 190.0, 0.15, 0.0, 280.0, sampling_frequency);
+	auto oscillator = Oscillator(200.0, 195.0, 0.2, 0.0, 280.0, sampling_frequency); // 190, 200
 
-	// auto noise = NoiseGenerator();
-	// auto hp = TwoPolesFilter<FilterType::Highpass>(2200.0, 0.75, sampling_frequency);
-	// auto lp1 = OnePoleFilter<FilterType::Lowpass>(2200.0, sampling_frequency);
-	// auto lp2 = TwoPolesFilter<FilterType::Lowpass>(16000.0, 0.5, sampling_frequency);
+	auto noise = NoiseGenerator();
+	auto lp = OnePoleFilter<FilterType::Lowpass>(1000.0, sampling_frequency);
 
-	// const double noise_gain = 0.0;
+	const double noise_gain = 0.13;
 	const double oscillator_gain = 1.0;
 
 	// Render
-	for (int x = 0; x < envelope.GetTotalSamples(); x += 1)
+	for (int x = 0; x < envelope_o.GetTotalSamples(); x += 1)
 	{
-		const double e = envelope.Get(
+		const double e_o = envelope_o.Get(
 		    x,                          //
 		    [](double x) { return x; }, //
 		    [](double x) { return ExponentialEasing(x, 8.0); });
 
+		const double e_n = envelope_n.Get(
+		    x,                          //
+		    [](double x) { return x; }, //
+		    [](double x) { return ExponentialEasing(x, 4.0); });
+
 		const double o = oscillator.Step( //
 		    [](double x) { return 1.0 - ExponentialEasing(1.0 - x, 8.0); });
 
-		// double n = noise.Step();
-		// n = hp.Step(n);
-		// n = lp2.Step(n);
-		// n = lp1.Step(n);
+		double n = noise.Step();
+		n = lp.Step(n);
 
-		const double mix = (o * oscillator_gain /*+ n * noise_gain*/) * e;
+		const double mix = (o * e_o * oscillator_gain) + (n * e_n * noise_gain);
 
-		**out = mix;
+		**out = Clamp(mix, -1.0, 1.0);
 		*out += 1;
 	}
 
