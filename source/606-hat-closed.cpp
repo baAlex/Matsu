@@ -15,7 +15,7 @@ defined by the Mozilla Public License, v. 2.0.
 
 static int RenderHatClosed(double sampling_frequency, double** out)
 {
-	auto envelope = AdEnvelope(0.0, 140.0, sampling_frequency);
+	auto envelope = AdEnvelope(SamplesToMilliseconds(10, sampling_frequency), 140.0, sampling_frequency);
 
 	auto oscillator_1 = SquareOscillator(619.0, sampling_frequency);
 	auto oscillator_2 = SquareOscillator(437.0, sampling_frequency);
@@ -43,8 +43,8 @@ static int RenderHatClosed(double sampling_frequency, double** out)
 	auto lp = OnePoleFilter<FilterType::Lowpass>(7800.0, sampling_frequency); // Too digital otherwise
 
 	const double tss_gain = 3.0;
-	const double clink_gain = 0.72;
-	const double noise_gain = 1.2;
+	const double clink_gain = 0.8;
+	const double noise_gain = 0.8;
 
 	// Render
 	for (int x = 0; x < envelope.GetTotalSamples(); x += 1)
@@ -78,7 +78,7 @@ static int RenderHatClosed(double sampling_frequency, double** out)
 		double tss;
 		{
 			// Distortion
-			tss = Distortion(metallic, -6.0, 0.5);
+			tss = Distortion(metallic, -7.0, 0.5);
 		}
 
 		// Mix

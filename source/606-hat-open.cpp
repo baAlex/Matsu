@@ -15,8 +15,8 @@ defined by the Mozilla Public License, v. 2.0.
 
 static int RenderHatOpen(double sampling_frequency, double** out)
 {
-	auto envelope_long = AdEnvelope(0.0, 1500.0, sampling_frequency);
-	auto envelope_short = AdEnvelope(0.0, 500.0, sampling_frequency);
+	auto envelope_long = AdEnvelope(SamplesToMilliseconds(10, sampling_frequency), 1500.0, sampling_frequency);
+	auto envelope_short = AdEnvelope(SamplesToMilliseconds(10, sampling_frequency), 500.0, sampling_frequency);
 
 	auto oscillator_1 = SquareOscillator(619.0, sampling_frequency);
 	auto oscillator_2 = SquareOscillator(437.0, sampling_frequency);
@@ -43,10 +43,10 @@ static int RenderHatOpen(double sampling_frequency, double** out)
 	auto hp = TwoPolesFilter<FilterType::Highpass>(6000.0, 0.5, sampling_frequency);
 	auto lp = OnePoleFilter<FilterType::Lowpass>(7800.0, sampling_frequency); // Too digital otherwise
 
-	const double short_gain = 1.4 * 0.75;
-	const double long_gain = 1.85 * 0.75;
-	const double clink_gain = 1.0 * 0.75;
-	const double noise_gain = 0.8 * 0.75;
+	const double short_gain = 1.0;
+	const double long_gain = 1.4;
+	const double clink_gain = 0.7;
+	const double noise_gain = 1.0;
 
 	// Render
 	for (int x = 0; x < Max(envelope_long.GetTotalSamples(), envelope_short.GetTotalSamples()); x += 1)
@@ -92,7 +92,7 @@ static int RenderHatOpen(double sampling_frequency, double** out)
 		double s;
 		{
 			// Distortion
-			s = Distortion(metallic, -6.0, 0.5);
+			s = Distortion(metallic, -7.0, 0.5);
 		}
 
 		// Mix
