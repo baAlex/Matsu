@@ -81,8 +81,8 @@ int main()
 	double* cursor = render_buffer;
 	RenderKick(SAMPLING_FREQUENCY, &cursor);
 
-	ExportS24(render_buffer, SAMPLING_FREQUENCY, static_cast<size_t>(cursor - render_buffer), "606-kick.wav");
-	ExportF64(render_buffer, SAMPLING_FREQUENCY, static_cast<size_t>(cursor - render_buffer), "606-kick-64.wav");
+	ExportAudioS24(render_buffer, SAMPLING_FREQUENCY, static_cast<size_t>(cursor - render_buffer), "606-kick.wav");
+	ExportAudioF64(render_buffer, SAMPLING_FREQUENCY, static_cast<size_t>(cursor - render_buffer), "606-kick-64.wav");
 
 	return 0;
 }

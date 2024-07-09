@@ -100,8 +100,10 @@ int main()
 	double* cursor = render_buffer;
 	RenderHatClosed(SAMPLING_FREQUENCY, &cursor);
 
-	ExportS24(render_buffer, SAMPLING_FREQUENCY, static_cast<size_t>(cursor - render_buffer), "606-hat-closed.wav");
-	ExportF64(render_buffer, SAMPLING_FREQUENCY, static_cast<size_t>(cursor - render_buffer), "606-hat-closed-64.wav");
+	ExportAudioS24(render_buffer, SAMPLING_FREQUENCY, static_cast<size_t>(cursor - render_buffer),
+	               "606-hat-closed.wav");
+	ExportAudioF64(render_buffer, SAMPLING_FREQUENCY, static_cast<size_t>(cursor - render_buffer),
+	               "606-hat-closed-64.wav");
 
 	return 0;
 }

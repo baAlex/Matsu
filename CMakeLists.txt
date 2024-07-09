@@ -36,9 +36,8 @@ target_compile_options("606-hat-open"   PRIVATE ${MATSU_CFLAGS})
 target_compile_options("606-tom-low"    PRIVATE ${MATSU_CFLAGS})
 target_compile_options("606-tom-high"   PRIVATE ${MATSU_CFLAGS})
 
-add_executable("analyser"             "source/analyser.cpp")
-target_link_libraries("analyser"      PRIVATE "lodepng")
-target_include_directories("analyser" PRIVATE "source/thirdparty/lodepng")
+add_executable("analyser" "source/analyser.cpp")
+target_link_libraries("analyser" PRIVATE "lodepng")
 
 if (CMAKE_BUILD_TYPE STREQUAL "Release")
 	set_target_properties("606-kick"       PROPERTIES INTERPROCEDURAL_OPTIMIZATION True)

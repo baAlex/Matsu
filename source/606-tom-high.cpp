@@ -82,8 +82,9 @@ int main()
 	double* cursor = render_buffer;
 	RenderTomHigh(SAMPLING_FREQUENCY, &cursor);
 
-	ExportS24(render_buffer, SAMPLING_FREQUENCY, static_cast<size_t>(cursor - render_buffer), "606-tom-high.wav");
-	ExportF64(render_buffer, SAMPLING_FREQUENCY, static_cast<size_t>(cursor - render_buffer), "606-tom-high-64.wav");
+	ExportAudioS24(render_buffer, SAMPLING_FREQUENCY, static_cast<size_t>(cursor - render_buffer), "606-tom-high.wav");
+	ExportAudioF64(render_buffer, SAMPLING_FREQUENCY, static_cast<size_t>(cursor - render_buffer),
+	               "606-tom-high-64.wav");
 
 	return 0;
 }

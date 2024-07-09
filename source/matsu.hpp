@@ -13,9 +13,13 @@ defined by the Mozilla Public License, v. 2.0.
 #ifndef MATSU_HPP
 #define MATSU_HPP
 
+#include <limits.h>
 #include <math.h>
 #include <stdint.h>
-#include <vector>
+#include <stdlib.h>
+
+#include "thirdparty/dr_libs/dr_wav.h"
+#include "thirdparty/lodepng/lodepng.h"
 
 #ifdef __clang__
 #pragma clang diagnostic push
@@ -334,7 +338,7 @@ class SquareOscillator
 };
 
 
-inline void ExportS24(const double* input, double sampling_frequency, size_t length, const char* filename)
+inline void ExportAudioS24(const double* input, double sampling_frequency, size_t length, const char* filename)
 {
 	auto export_buffer = reinterpret_cast<uint8_t*>(malloc(sizeof(uint8_t) * 3 * length));
 	if (export_buffer == nullptr)
@@ -376,7 +380,7 @@ inline void ExportS24(const double* input, double sampling_frequency, size_t len
 }
 
 
-inline void ExportF64(const double* input, double sampling_frequency, size_t length, const char* filename)
+inline void ExportAudioF64(const double* input, double sampling_frequency, size_t length, const char* filename)
 {
 	drwav_data_format format;
 	format.container = drwav_container_riff;
@@ -389,6 +393,83 @@ inline void ExportF64(const double* input, double sampling_frequency, size_t len
 	drwav_init_file_write(&wav, filename, &format, nullptr);
 	drwav_write_pcm_frames(&wav, static_cast<drwav_uint64>(length), input);
 	drwav_uninit(&wav);
+}
+
+
+struct Colour
+{
+	uint8_t r;
+	uint8_t g;
+	uint8_t b;
+	uint8_t a;
+};
+
+inline int ExportImagePalette(const uint8_t* buffer, const Colour* palette, size_t width, size_t height, size_t colours,
+                              const char* filename)
+{
+	LodePNGState png;
+	unsigned char* encoded_blob = nullptr;
+	FILE* fp = nullptr;
+
+	if (colours > UINT8_MAX || width > UINT_MAX || height > UINT_MAX)
+		return 1;
+
+	// Initialize Png encoder
+	lodepng_state_init(&png);               // Doesn't fail
+	lodepng_color_mode_init(&png.info_raw); // Ditto
+
+	png.info_raw.colortype = LCT_PALETTE;
+	png.info_raw.bitdepth = 8;
+
+	for (size_t i = 0; i < colours; i += 1)
+	{
+		if (lodepng_palette_add(&png.info_raw, palette[i].r, palette[i].g, palette[i].b, palette[i].a) != 0)
+		{
+			fprintf(stderr, "LodePng error, palette_add().\n");
+			goto return_failure;
+		}
+	}
+
+	// Encode
+	size_t encoded_blob_size;
+	{
+		const unsigned ret = lodepng_encode(&encoded_blob, &encoded_blob_size, buffer, static_cast<unsigned>(width),
+		                                    static_cast<unsigned>(height), &png);
+
+		if (ret != 0)
+		{
+			fprintf(stderr, "LodePng error, encode().\n");
+			fprintf(stderr, "\"%s\".\n", lodepng_error_text(ret));
+			goto return_failure;
+		}
+	}
+
+	// Write to file
+	if ((fp = fopen(filename, "wb")) == nullptr)
+	{
+		fprintf(stderr, "File output error (at opening a file).\n");
+		goto return_failure;
+	}
+
+	if (fwrite(encoded_blob, sizeof(uint8_t), encoded_blob_size, fp) != encoded_blob_size)
+	{
+		fprintf(stderr, "File output error (at writing).\n");
+		goto return_failure;
+	}
+
+	// Bye!
+	fclose(fp);
+	free(encoded_blob);
+	lodepng_state_cleanup(&png);
+	return 0;
+
+return_failure:
+	if (fp != nullptr)
+		fclose(fp);
+	if (encoded_blob != nullptr)
+		free(encoded_blob);
+	lodepng_state_cleanup(&png);
+	return 1;
 }
 
 #endif
