@@ -4,7 +4,7 @@ project("Pffft Library" C)
 
 
 ####
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_C_STANDARD 11)
 if (MSVC)
 	add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 	set(PFFFT_CFLAGS /W4)

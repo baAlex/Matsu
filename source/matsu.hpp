@@ -20,6 +20,7 @@ defined by the Mozilla Public License, v. 2.0.
 
 #include "thirdparty/dr_libs/dr_wav.h"
 #include "thirdparty/lodepng/lodepng.h"
+#include "thirdparty/pffft/pffft.h"
 
 #ifdef __clang__
 #pragma clang diagnostic push
@@ -411,7 +412,7 @@ inline int ExportImagePalette(const uint8_t* buffer, const Colour* palette, size
 	unsigned char* encoded_blob = nullptr;
 	FILE* fp = nullptr;
 
-	if (colours > UINT8_MAX || width > UINT_MAX || height > UINT_MAX)
+	if (colours > 256 || width > UINT_MAX || height > UINT_MAX)
 		return 1;
 
 	// Initialize Png encoder
