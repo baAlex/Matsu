@@ -27,8 +27,9 @@ cmake ..
 make
 ```
 
-Dependencies [dr_libs](https://github.com/mackron/dr_libs), [pffft](https://bitbucket.org/jpommier/pffft)
-and [lodepng](https://github.com/lvandeve/lodepng), cloned and statically compiled as part of above process.
+Dependencies [dr_libs](https://github.com/mackron/dr_libs), [pffft](https://bitbucket.org/jpommier/pffft),
+[cargs](https://github.com/likle/cargs) and [lodepng](https://github.com/lvandeve/lodepng),
+cloned and statically compiled as part of above process.
 
 
 License

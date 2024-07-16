@@ -21,6 +21,7 @@ endif ()
 
 add_subdirectory("source/thirdparty/lodepng_cmake/")
 add_subdirectory("source/thirdparty/pffft_cmake/")
+add_subdirectory("source/thirdparty/cargs/")
 
 
 add_executable("606-kick"       "source/606-kick.cpp")
@@ -40,6 +41,7 @@ target_compile_options("606-tom-high"   PRIVATE ${MATSU_CFLAGS})
 add_executable("analyser" "source/analyser.cpp")
 target_link_libraries("analyser" PRIVATE "lodepng")
 target_link_libraries("analyser" PRIVATE "pffft")
+target_link_libraries("analyser" PRIVATE "cargs")
 
 if (CMAKE_BUILD_TYPE STREQUAL "Release")
 	set_target_properties("606-kick"       PROPERTIES INTERPROCEDURAL_OPTIMIZATION True)

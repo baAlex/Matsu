@@ -7,3 +7,6 @@
 [submodule "source/thirdparty/pffft"]
 	path = source/thirdparty/pffft
 	url = https://bitbucket.org/jpommier/pffft
+[submodule "source/thirdparty/cargs"]
+	path = source/thirdparty/cargs
+	url = https://github.com/likle/cargs
