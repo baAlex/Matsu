@@ -19,6 +19,7 @@ defined by the Mozilla Public License, v. 2.0.
 #include <stdlib.h>
 
 #include "thirdparty/dr_libs/dr_wav.h"
+#include "thirdparty/pffft/pffft.h"
 
 #ifdef __clang__
 #pragma clang diagnostic push
@@ -392,6 +393,176 @@ inline void ExportAudioF64(const double* input, double sampling_frequency, size_
 	drwav_init_file_write(&wav, filename, &format, nullptr);
 	drwav_write_pcm_frames(&wav, static_cast<drwav_uint64>(length), input);
 	drwav_uninit(&wav);
+}
+
+
+struct AnalyserOutput
+{
+	size_t windows;
+	float difference;
+};
+
+template <typename T, typename T2, typename T3>
+AnalyserOutput Analyse(T input_callback, T2 input_callback2, T3 output_callback, size_t overlaps_no,
+                       size_t window_length)
+{
+	const size_t to_read_length = window_length / overlaps_no;
+
+	AnalyserOutput ret = {};
+	long diff_sum = 0;
+	long diff_div = 0;
+
+	PFFFT_Setup* pffft = nullptr;
+
+	float* window_a = nullptr;
+	float* window_b = nullptr;
+	float* window_c = nullptr;
+	float* window_d = nullptr;
+	float* work_area = nullptr;
+
+	// Initialize Pffft
+	if ((pffft = pffft_new_setup(static_cast<int>(window_length), PFFFT_REAL)) == nullptr)
+	{
+		fprintf(stderr, "Pffft error, new_setup().\n");
+		goto return_failure;
+	}
+
+	// Allocate windows
+	if ((window_a = reinterpret_cast<float*>(pffft_aligned_malloc(sizeof(float) * window_length))) == nullptr ||
+	    (window_b = reinterpret_cast<float*>(pffft_aligned_malloc(sizeof(float) * window_length))) == nullptr ||
+	    (window_c = reinterpret_cast<float*>(pffft_aligned_malloc(sizeof(float) * window_length))) == nullptr ||
+	    (window_d = reinterpret_cast<float*>(pffft_aligned_malloc(sizeof(float) * window_length))) == nullptr ||
+	    (work_area = reinterpret_cast<float*>(pffft_aligned_malloc(sizeof(float) * window_length))) == nullptr)
+	{
+		fprintf(stderr, "No enough memory (at audio block allocation).\n");
+		goto return_failure;
+	}
+
+	memset(window_a, 0, sizeof(float) * window_length);
+	memset(window_b, 0, sizeof(float) * window_length);
+
+	// Analyse
+	while (1) // TODO, I can calculate how many windows are required
+	{
+		// Read audio
+		const size_t read = input_callback(to_read_length, window_a + window_length - to_read_length);
+		if (read != to_read_length)
+			memset(window_a + window_length - to_read_length + read, 0, sizeof(float) * (to_read_length - read));
+
+		const size_t read2 = input_callback2(to_read_length, window_b + window_length - to_read_length);
+		if (read2 != 0 && read2 != to_read_length)
+			memset(window_b + window_length - to_read_length + read, 0, sizeof(float) * (to_read_length - read));
+
+		// Apply window function
+		for (size_t i = 0; i < window_length; i += 1)
+		{
+			// Hann window
+			const float window = 0.5f * (1.0f - cosf((static_cast<float>(M_PI_TWO) * static_cast<float>(i)) /
+			                                         static_cast<float>(window_length)));
+
+			window_c[i] = window_a[i] * window;
+		}
+
+		if (read2 != 0)
+		{
+			for (size_t i = 0; i < window_length; i += 1)
+			{
+				const float window = 0.5f * (1.0f - cosf((static_cast<float>(M_PI_TWO) * static_cast<float>(i)) /
+				                                         static_cast<float>(window_length)));
+
+				window_d[i] = window_b[i] * window;
+			}
+		}
+
+		// Fourier
+		pffft_transform_ordered(pffft, window_c, window_c, work_area, PFFFT_FORWARD);
+		ret.windows += 1;
+
+		if (read2 != 0)
+			pffft_transform_ordered(pffft, window_d, window_d, work_area, PFFFT_FORWARD);
+
+		// Prepare spectrum
+		if (read2 == 0)
+		{
+			// Convert to magnitude and de-interleave
+			for (size_t i = 0; i < window_length / 2; i += 1)
+			{
+				const float magnitude = sqrtf(powf(window_c[i * 2 + 0], 2.0f) + powf(window_c[i * 2 + 1], 2.0f)) /
+				                        static_cast<float>(window_length / 2);
+				window_c[i] = magnitude;
+			}
+		}
+		else
+		{
+			// Same as above, tho comparing spectrums this time
+			for (size_t i = 0; i < window_length / 2; i += 1)
+			{
+				const float magnitude1 = sqrtf(powf(window_c[i * 2 + 0], 2.0f) + powf(window_c[i * 2 + 1], 2.0f)) /
+				                         static_cast<float>(window_length / 2);
+				const float magnitude2 = sqrtf(powf(window_d[i * 2 + 0], 2.0f) + powf(window_d[i * 2 + 1], 2.0f)) /
+				                         static_cast<float>(window_length / 2);
+
+				window_c[i] = sqrtf(powf(magnitude1 - magnitude2, 2.0f)); // Distance
+				diff_sum += static_cast<long>(window_c[i] * 10000.0f);
+				diff_div += 1;
+
+				// window_c[i] = powf(magnitude1 - magnitude2, 2.0f) / 2.0f; // MSE
+			}
+		}
+
+		// Output
+		output_callback(ret.windows, window_length, window_c);
+
+		// Next step?
+		if (read != static_cast<drwav_uint64>(to_read_length))
+			break;
+
+		if (read2 != 0 && read2 != static_cast<drwav_uint64>(to_read_length))
+			break;
+
+		// Scroll window
+		for (size_t i = 0; i < (window_length - to_read_length); i += 1)
+			window_a[i] = window_a[i + to_read_length];
+
+		if (read2 != 0)
+		{
+			for (size_t i = 0; i < (window_length - to_read_length); i += 1)
+				window_b[i] = window_b[i + to_read_length];
+		}
+	}
+
+	// Bye!
+	if (diff_div != 0)
+	{
+		// printf("    - %zi / %zi\n", diff_sum, diff_div);
+		// ret.difference = static_cast<float>(diff_sum / diff_div) / 10000.0f;
+
+		ret.difference = static_cast<float>(diff_sum) / static_cast<float>(diff_div); // TODO
+		printf("    - Difference %.4f\n", ret.difference);
+	}
+
+	pffft_destroy_setup(pffft);
+	pffft_aligned_free(window_a);
+	pffft_aligned_free(window_b);
+	pffft_aligned_free(window_c);
+	pffft_aligned_free(window_d);
+	pffft_aligned_free(work_area);
+	return ret;
+
+return_failure:
+	if (pffft != nullptr)
+		pffft_destroy_setup(pffft);
+	if (window_a != nullptr)
+		pffft_aligned_free(window_a);
+	if (window_b != nullptr)
+		pffft_aligned_free(window_b);
+	if (window_c != nullptr)
+		pffft_aligned_free(window_c);
+	if (window_d != nullptr)
+		pffft_aligned_free(window_d);
+	if (work_area != nullptr)
+		pffft_aligned_free(work_area);
+	return {};
 }
 
 #endif
