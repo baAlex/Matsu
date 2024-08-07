@@ -19,6 +19,7 @@ struct Settings
 	double long_gain;
 	double noise_gain;
 	double distortion;
+	double clink_gain;
 };
 
 static size_t RenderHatOpen(Settings settings, double sampling_frequency, double* output)
@@ -33,12 +34,12 @@ static size_t RenderHatOpen(Settings settings, double sampling_frequency, double
 	auto oscillator_5 = SquareOscillator(306.0, sampling_frequency);
 	auto oscillator_6 = SquareOscillator(245.0, sampling_frequency);
 
-	/*auto o1 = Oscillator(7502.0, 7502.0, 0.0, 0.0, 1500.0, sampling_frequency);
+	auto o1 = Oscillator(7802.0, 7802.0, 0.0, 0.0, 1500.0, sampling_frequency);
+	auto o6 = Oscillator(6822.0, 6822.0, 0.0, 0.0, 1500.0, sampling_frequency);
 	auto o2 = Oscillator(6149.0, 6149.0, 0.0, 0.0, 1500.0, sampling_frequency);
 	auto o3 = Oscillator(5552.0, 5552.0, 0.0, 0.0, 1500.0, sampling_frequency);
 	auto o4 = Oscillator(4746.0, 4746.0, 0.0, 0.0, 1500.0, sampling_frequency);
 	auto o5 = Oscillator(3363.0, 3363.0, 0.0, 0.0, 1500.0, sampling_frequency);
-	auto o6 = Oscillator(1094.0, 1094.0, 0.0, 0.0, 1500.0, sampling_frequency);*/
 
 	auto noise = NoiseGenerator();
 
@@ -73,25 +74,22 @@ static size_t RenderHatOpen(Settings settings, double sampling_frequency, double
 			metallic /= 6.0;
 
 			// Clink
-			/*const auto easing = [](double x) { return x; };
+			const auto easing = [](double x) { return x; };
 			metallic += (o1.Step(easing) + o2.Step(easing) + o3.Step(easing) + //
 			             o4.Step(easing) + o5.Step(easing) + o6.Step(easing)) *
-			            0.05 * clink_gain;*/
+			            settings.clink_gain;
 
 			// Bandpass
 			metallic = bp_b.Step(bp_a.Step(metallic));
 			metallic = bp_c.Step(metallic);
 			metallic = Clamp(metallic * 8.0, -1.0, 1.0); // Normalize and clip it
+
+			// Distortion
+			metallic = Distortion(metallic, -settings.distortion, 0.0);
 		}
 
-		// Long tsss
-		double l = Distortion(metallic, -settings.distortion, 0.0);
-
-		// Short tsss
-		double s = Distortion(metallic, -settings.distortion, 0.0);
-
 		// Mix
-		output[x] = lp.Step(hp.Step((l * e_l * settings.long_gain) + (s * e_s * settings.short_gain)) +
+		output[x] = lp.Step(hp.Step((metallic * e_l * settings.long_gain) + (metallic * e_s * settings.short_gain)) +
 		                    (noise.Step() * e_s * settings.noise_gain));
 		output[x] = Clamp(output[x], -1.0, 1.0);
 	}
@@ -110,6 +108,8 @@ int main(int argc, const char* argv[])
 	drwav_uint64 reference_data_length;
 	size_t render_length = 0;
 
+	Analyser analyser(512, 5);
+
 	// Open file to compare against
 	if (argc > 1)
 	{
@@ -127,11 +127,12 @@ int main(int argc, const char* argv[])
 
 	// Default sensible settings
 	Settings s;
-	s.short_gain = 1.27;
-	s.long_gain = 1.693;
-	s.noise_gain = 0.078;
-	s.distortion = 1.98;
-	uint64_t r = 0xedb3ff761d1f240f;
+	s.short_gain = 0.817;
+	s.long_gain = 1.066;
+	s.noise_gain = 0.060;
+	s.distortion = 5.341;
+	s.clink_gain = 0.03;
+	uint64_t r = 0x654a6ce66da6697b;
 
 	Settings childs[16];
 	float childs_score[16];
@@ -149,7 +150,7 @@ int main(int argc, const char* argv[])
 				childs[ch].noise_gain = s.noise_gain * (RandomFloat(&r) * 0.75 + 1.25);
 				childs[ch].distortion = s.distortion * (RandomFloat(&r) * 0.75 + 1.25);
 
-				childs[ch].noise_gain = Min(childs[ch].noise_gain, 0.08); // Some rules >:(
+				childs[ch].noise_gain = Min(childs[ch].noise_gain, 0.06); // Some rules >:(
 				childs[ch].distortion = Min(childs[ch].distortion, 8.0);
 
 				// Render
@@ -186,7 +187,7 @@ int main(int argc, const char* argv[])
 					return;
 				};
 
-				AnalyserOutput analysis = Analyse(input_callback1, input_callback2, draw_callback, 5, 512);
+				auto analysis = analyser.Analyse(input_callback1, input_callback2, draw_callback);
 				childs_score[ch] = analysis.difference;
 
 				// Some feedback

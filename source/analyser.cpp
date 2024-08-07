@@ -507,6 +507,7 @@ int main(int argc, char* argv[])
 	// Analyse
 	{
 		const auto overlaps_no = static_cast<size_t>(20.0f * s.scale * (static_cast<float>(s.window_length) / 2048.0f));
+		Analyser analyser(s.window_length, overlaps_no);
 
 		const auto read_callback = [&](size_t to_read_length, float* out) -> size_t
 		{
@@ -532,7 +533,7 @@ int main(int argc, char* argv[])
 
 		printf(" - Analysing...\n");
 
-		const auto analysis = Analyse(read_callback, read_callback2, draw_callback, overlaps_no, s.window_length);
+		const auto analysis = analyser.Analyse(read_callback, read_callback2, draw_callback);
 		s.analysed_windows = analysis.windows;
 		s.difference = analysis.difference;
 
