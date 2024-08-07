@@ -536,7 +536,9 @@ int main(int argc, char* argv[])
 		s.analysed_windows = analysis.windows;
 		s.difference = analysis.difference;
 
+		printf("    - Overlaps: %zu\n", overlaps_no);
 		printf("    - Analysed %zu windows\n", analysis.windows);
+		printf("    - Difference %.4f\n", analysis.difference);
 	}
 
 	// Draw chrome

@@ -84,6 +84,17 @@ inline uint64_t Random(uint64_t* state)
 	return x * static_cast<uint64_t>(0x2545F4914F6CDD1D);
 }
 
+inline double RandomFloat(uint64_t* state)
+{
+	// https://prng.di.unimi.it/
+
+	// Hexadecimal floating literals are a C++17 feature
+	// return (static_cast<double>(x) * 0x1.0p-53) * 2.0 - 1.0;
+
+	const uint64_t x = Random(state) >> static_cast<uint64_t>(11);
+	return (static_cast<double>(x) * 1.11022302462515654042363166809e-16) * 2.0 - 1.0;
+}
+
 inline double ExponentialEasing(double x, double a)
 {
 	return ((exp(a * fabs(x)) - 1.0) / (exp(a) - 1.0)) * Sign(x);
@@ -256,13 +267,7 @@ class NoiseGenerator
 
 	double Step()
 	{
-		// https://prng.di.unimi.it/
-
-		// Hexadecimal floating literals are a C++17 feature
-		// return (static_cast<double>(x) * 0x1.0p-53) * 2.0 - 1.0;
-
-		const uint64_t x = Random(&m_state) >> static_cast<uint64_t>(11);
-		return (static_cast<double>(x) * 1.11022302462515654042363166809e-16) * 2.0 - 1.0;
+		return RandomFloat(&m_state);
 	}
 
   private:
@@ -538,7 +543,6 @@ AnalyserOutput Analyse(T input_callback, T2 input_callback2, T3 output_callback,
 		// ret.difference = static_cast<float>(diff_sum / diff_div) / 10000.0f;
 
 		ret.difference = static_cast<float>(diff_sum) / static_cast<float>(diff_div); // TODO
-		printf("    - Difference %.4f\n", ret.difference);
 	}
 
 	pffft_destroy_setup(pffft);
