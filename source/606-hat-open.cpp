@@ -35,11 +35,11 @@ static size_t RenderHatOpen(Settings settings, double sampling_frequency, double
 	auto oscillator_6 = SquareOscillator(245.0, sampling_frequency);
 
 	auto o1 = Oscillator(7802.0, 7802.0, 0.0, 0.0, 1500.0, sampling_frequency);
-	auto o6 = Oscillator(6822.0, 6822.0, 0.0, 0.0, 1500.0, sampling_frequency);
-	auto o2 = Oscillator(6149.0, 6149.0, 0.0, 0.0, 1500.0, sampling_frequency);
-	auto o3 = Oscillator(5552.0, 5552.0, 0.0, 0.0, 1500.0, sampling_frequency);
-	auto o4 = Oscillator(4746.0, 4746.0, 0.0, 0.0, 1500.0, sampling_frequency);
-	auto o5 = Oscillator(3363.0, 3363.0, 0.0, 0.0, 1500.0, sampling_frequency);
+	auto o2 = Oscillator(6822.0, 6822.0, 0.0, 0.0, 1500.0, sampling_frequency);
+	auto o3 = Oscillator(6149.0, 6149.0, 0.0, 0.0, 1500.0, sampling_frequency);
+	auto o4 = Oscillator(5552.0, 5552.0, 0.0, 0.0, 1500.0, sampling_frequency);
+	auto o5 = Oscillator(4746.0, 4746.0, 0.0, 0.0, 1500.0, sampling_frequency);
+	auto o6 = Oscillator(3363.0, 3363.0, 0.0, 0.0, 1500.0, sampling_frequency);
 
 	auto noise = NoiseGenerator();
 
@@ -127,12 +127,12 @@ int main(int argc, const char* argv[])
 
 	// Default sensible settings
 	Settings s;
-	s.short_gain = 0.817;
-	s.long_gain = 1.066;
-	s.noise_gain = 0.060;
-	s.distortion = 5.341;
+	s.short_gain = 1.272;
+	s.long_gain = 1.272;
+	s.noise_gain = 0.040;
+	s.distortion = 2.833;
 	s.clink_gain = 0.03;
-	uint64_t r = 0x654a6ce66da6697b;
+	uint64_t r = 0xab71dad5a2dc902b;
 
 	Settings childs[16];
 	float childs_score[16];
@@ -149,9 +149,12 @@ int main(int argc, const char* argv[])
 				childs[ch].long_gain = s.long_gain * (RandomFloat(&r) * 0.75 + 1.25);
 				childs[ch].noise_gain = s.noise_gain * (RandomFloat(&r) * 0.75 + 1.25);
 				childs[ch].distortion = s.distortion * (RandomFloat(&r) * 0.75 + 1.25);
+				childs[ch].clink_gain = s.clink_gain * (RandomFloat(&r) * 0.75 + 1.25);
 
-				childs[ch].noise_gain = Min(childs[ch].noise_gain, 0.06); // Some rules >:(
+				childs[ch].noise_gain = Min(childs[ch].noise_gain, 0.04); // Some rules >:(
 				childs[ch].distortion = Min(childs[ch].distortion, 8.0);
+				childs[ch].short_gain = Max(childs[ch].short_gain, childs[ch].long_gain);
+				childs[ch].clink_gain = Min(childs[ch].clink_gain, 0.03);
 
 				// Render
 				render_length = RenderHatOpen(childs[ch], SAMPLING_FREQUENCY, render_buffer);
@@ -191,8 +194,9 @@ int main(int argc, const char* argv[])
 				childs_score[ch] = analysis.difference;
 
 				// Some feedback
-				printf("Child %zu, Difference %.4f\t[%.3f, %.3f, %.3f, %.3f]\n", ch, analysis.difference,
-				       childs[ch].short_gain, childs[ch].long_gain, childs[ch].noise_gain, childs[ch].distortion);
+				printf("Child %zu, Difference %.4f\t[%.3f, %.3f, %.3f, %.3f, %.3f]\n", ch, analysis.difference,
+				       childs[ch].short_gain, childs[ch].long_gain, childs[ch].noise_gain, childs[ch].distortion,
+				       childs[ch].clink_gain);
 			}
 
 			// Choose best childs
@@ -219,9 +223,10 @@ int main(int argc, const char* argv[])
 			s.long_gain = exp((log(childs[first_best].long_gain) + log(childs[second_best].long_gain)) / 2.0);
 			s.noise_gain = exp((log(childs[first_best].noise_gain) + log(childs[second_best].noise_gain)) / 2.0);
 			s.distortion = exp((log(childs[first_best].distortion) + log(childs[second_best].distortion)) / 2.0);
+			s.clink_gain = exp((log(childs[first_best].clink_gain) + log(childs[second_best].clink_gain)) / 2.0);
 
-			printf("Mix [%.3f, %.3f, %.3f, %.3f], seed: 0x%zx\n", s.short_gain, s.long_gain, s.noise_gain, s.distortion,
-			       r);
+			printf("Mix [%.3f, %.3f, %.3f, %.3f, %.3f], seed: 0x%zx\n", s.short_gain, s.long_gain, s.noise_gain,
+			       s.distortion, s.clink_gain, r);
 		}
 
 		// Final render
