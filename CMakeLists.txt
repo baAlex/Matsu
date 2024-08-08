@@ -31,12 +31,17 @@ add_executable("606-hat-open"   "source/606-hat-open.cpp")
 add_executable("606-tom-low"    "source/606-tom-low.cpp")
 add_executable("606-tom-high"   "source/606-tom-high.cpp")
 
+add_executable("resonant-hats" "source/research/resonant-hats.cpp")
+
 target_compile_options("606-kick"       PRIVATE ${MATSU_CFLAGS})
 target_compile_options("606-snare"      PRIVATE ${MATSU_CFLAGS})
 target_compile_options("606-hat-closed" PRIVATE ${MATSU_CFLAGS})
 target_compile_options("606-hat-open"   PRIVATE ${MATSU_CFLAGS})
 target_compile_options("606-tom-low"    PRIVATE ${MATSU_CFLAGS})
 target_compile_options("606-tom-high"   PRIVATE ${MATSU_CFLAGS})
+
+target_compile_options("resonant-hats" PRIVATE ${MATSU_CFLAGS})
+
 
 add_executable("analyser" "source/analyser.cpp")
 target_link_libraries("analyser" PRIVATE "lodepng")
@@ -46,6 +51,7 @@ target_link_libraries("analyser" PRIVATE "cargs")
 target_link_libraries("606-hat-open"   PRIVATE "pffft")
 target_link_libraries("606-hat-closed" PRIVATE "pffft")
 
+
 if (CMAKE_BUILD_TYPE STREQUAL "Release")
 	set_target_properties("606-kick"       PROPERTIES INTERPROCEDURAL_OPTIMIZATION True)
 	set_target_properties("606-snare"      PROPERTIES INTERPROCEDURAL_OPTIMIZATION True)
@@ -53,5 +59,8 @@ if (CMAKE_BUILD_TYPE STREQUAL "Release")
 	set_target_properties("606-hat-open"   PROPERTIES INTERPROCEDURAL_OPTIMIZATION True)
 	set_target_properties("606-tom-low"    PROPERTIES INTERPROCEDURAL_OPTIMIZATION True)
 	set_target_properties("606-tom-high"   PROPERTIES INTERPROCEDURAL_OPTIMIZATION True)
-	set_target_properties("analyser"       PROPERTIES INTERPROCEDURAL_OPTIMIZATION True)
+
+	set_target_properties("analyser" PROPERTIES INTERPROCEDURAL_OPTIMIZATION True)
+
+	set_target_properties("resonant-hats" PROPERTIES INTERPROCEDURAL_OPTIMIZATION True)
 endif ()
