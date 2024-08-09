@@ -48,9 +48,6 @@ target_link_libraries("analyser" PRIVATE "lodepng")
 target_link_libraries("analyser" PRIVATE "pffft")
 target_link_libraries("analyser" PRIVATE "cargs")
 
-target_link_libraries("606-hat-open"   PRIVATE "pffft")
-target_link_libraries("606-hat-closed" PRIVATE "pffft")
-
 
 if (CMAKE_BUILD_TYPE STREQUAL "Release")
 	set_target_properties("606-kick"       PROPERTIES INTERPROCEDURAL_OPTIMIZATION True)
