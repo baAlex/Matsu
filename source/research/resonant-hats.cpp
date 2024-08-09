@@ -47,26 +47,31 @@ static size_t RenderHatOpen(Settings settings, double sampling_frequency, double
 	auto bp_a = TwoPolesFilter<FilterType::Highpass>(6822.0, 3.5, sampling_frequency);
 	auto bp_b = OnePoleFilter<FilterType::Lowpass>(7802.0, sampling_frequency);
 	auto bp_c = OnePoleFilter<FilterType::Lowpass>(7951.0, sampling_frequency);
-	auto bp_d = OnePoleFilter<FilterType::Lowpass>(12000.0, sampling_frequency);
+	auto bp_d = OnePoleFilter<FilterType::Lowpass>(10000.0, sampling_frequency);
 
-	auto lp = TwoPolesFilter<FilterType::Lowpass>(14000.0, 0.5, sampling_frequency);
-	auto hp = TwoPolesFilter<FilterType::Highpass>(6363.0, 0.5, sampling_frequency);
+	auto hp = TwoPolesFilter<FilterType::Highpass>(8363.0, 0.75, sampling_frequency);
+	auto lp = TwoPolesFilter<FilterType::Lowpass>(14000.0, 0.25, sampling_frequency);
+	const double lp_wet = 0.75; // Original one seems to die lovely at 22 MHz, it can
+	                            // be better filters, a nyquist sampling thing, or both.
+	                            // This wet/dry mix can get us somewhat there. A proper
+	                            // solution should be a weird '1.5 Poles Filter'.
 
-	// Render noise
+	// Render metallic noise
 	double max_level = 0.0;
 	for (int x = 0; x < envelope_long.GetTotalSamples(); x += 1)
 	{
+		// Sum six square oscillators
 		double signal = oscillator_1.Step() + oscillator_2.Step() + oscillator_3.Step() //
 		                + oscillator_4.Step() + oscillator_5.Step() + oscillator_6.Step();
 		signal = signal / 6.0;
 
+		// Band pass them
 		signal = bp_a.Step(signal);
 		signal = bp_b.Step(signal);
 		signal = bp_c.Step(signal);
 		signal = bp_d.Step(signal);
 
-		signal = lp.Step(signal);
-
+		// Done!
 		output[x] = signal;
 		max_level = Max(signal, max_level);
 	}
@@ -91,12 +96,20 @@ static size_t RenderHatOpen(Settings settings, double sampling_frequency, double
 
 		double signal = output[x];
 
+		// Distort metallic noise, a highpass fix asymmetry
 		signal = Distortion(signal, -settings.distortion, settings.distortion_symmetry);
 		signal = hp.Step(signal);
+
+		// Apply envelope
 		signal = signal * (e_l + e_s * settings.short_long_gain_ratio);
 
+		// Add transient noise, also enveloped
 		signal = signal + noise.Step() * (settings.noise_gain * e_s * settings.short_long_gain_ratio);
 
+		// Lowpass filter, otherwise we will sound too digital
+		signal = Mix(signal, lp.Step(signal), lp_wet);
+
+		// Done!
 		output[x] = signal;
 		max_level = Max(signal, max_level);
 	}
