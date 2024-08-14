@@ -361,6 +361,55 @@ class Oscillator
 };
 
 
+class Oscillator2
+{
+  public:
+	Oscillator2(double frequency_a, double frequency_b, double feedback_level_a, double feedback_level_b,
+	            double duration, double sweep_shape, double sampling_frequency)
+	{
+		m_phase = 0.0;
+		m_phase_delta_a = (frequency_a / sampling_frequency) * M_PI_TWO;
+		m_phase_delta_b = (frequency_b / sampling_frequency) * M_PI_TWO;
+
+		m_sweep = 0.0;
+		m_sweep_delta = 1.0 / static_cast<double>(MillisecondsToSamples(duration, sampling_frequency));
+		m_sweep_shape = sweep_shape;
+
+		m_feedback = 0.0;
+		m_feedback_level_a = feedback_level_a / (M_PI / 2.0); // For a maximum 'feedback_level' of 1
+		m_feedback_level_b = feedback_level_b / (M_PI / 2.0); // Ditto
+	}
+
+	double Step()
+	{
+		const double sweep = Min(1.0 - ExponentialEasing(1.0 - m_sweep, m_sweep_shape), 1.0);
+		const double phase_delta = Mix(m_phase_delta_a, m_phase_delta_b, sweep);
+		const double feedback_level = Mix(m_feedback_level_a, m_feedback_level_b, sweep);
+
+		m_phase = fmod(m_phase + phase_delta, M_PI_TWO);
+		m_sweep = Min(m_sweep + m_sweep_delta, 1.0);
+
+		const double signal = sin(m_phase + m_feedback);
+		m_feedback = (m_feedback + signal) * feedback_level;
+
+		return signal;
+	}
+
+  private:
+	double m_phase;
+	double m_phase_delta_a;
+	double m_phase_delta_b;
+
+	double m_sweep;
+	double m_sweep_delta;
+	double m_sweep_shape;
+
+	double m_feedback;
+	double m_feedback_level_a;
+	double m_feedback_level_b;
+};
+
+
 class SquareOscillator
 {
   public:

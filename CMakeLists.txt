@@ -24,19 +24,17 @@ add_subdirectory("source/thirdparty/pffft_cmake/")
 add_subdirectory("source/thirdparty/cargs/")
 
 
-add_executable("606-kick"     "source/606-kick.cpp")
-add_executable("606-snare"    "source/606-snare.cpp")
-add_executable("606-hats"     "source/606-hats.cpp")
-add_executable("606-tom-low"  "source/606-tom-low.cpp")
-add_executable("606-tom-high" "source/606-tom-high.cpp")
+add_executable("606-kick"  "source/606-kick.cpp")
+add_executable("606-snare" "source/606-snare.cpp")
+add_executable("606-hats"  "source/606-hats.cpp")
+add_executable("606-toms"  "source/606-toms.cpp")
 
 add_executable("resonant-hats" "source/research/resonant-hats.cpp")
 
-target_compile_options("606-kick"     PRIVATE ${MATSU_CFLAGS})
-target_compile_options("606-snare"    PRIVATE ${MATSU_CFLAGS})
-target_compile_options("606-hats"     PRIVATE ${MATSU_CFLAGS})
-target_compile_options("606-tom-low"  PRIVATE ${MATSU_CFLAGS})
-target_compile_options("606-tom-high" PRIVATE ${MATSU_CFLAGS})
+target_compile_options("606-kick"  PRIVATE ${MATSU_CFLAGS})
+target_compile_options("606-snare" PRIVATE ${MATSU_CFLAGS})
+target_compile_options("606-hats"  PRIVATE ${MATSU_CFLAGS})
+target_compile_options("606-toms"  PRIVATE ${MATSU_CFLAGS})
 
 target_compile_options("resonant-hats" PRIVATE ${MATSU_CFLAGS})
 
@@ -48,11 +46,10 @@ target_link_libraries("analyser" PRIVATE "cargs")
 
 
 if (CMAKE_BUILD_TYPE STREQUAL "Release")
-	set_target_properties("606-kick"     PROPERTIES INTERPROCEDURAL_OPTIMIZATION True)
-	set_target_properties("606-snare"    PROPERTIES INTERPROCEDURAL_OPTIMIZATION True)
-	set_target_properties("606-hats"     PROPERTIES INTERPROCEDURAL_OPTIMIZATION True)
-	set_target_properties("606-tom-low"  PROPERTIES INTERPROCEDURAL_OPTIMIZATION True)
-	set_target_properties("606-tom-high" PROPERTIES INTERPROCEDURAL_OPTIMIZATION True)
+	set_target_properties("606-kick"  PROPERTIES INTERPROCEDURAL_OPTIMIZATION True)
+	set_target_properties("606-snare" PROPERTIES INTERPROCEDURAL_OPTIMIZATION True)
+	set_target_properties("606-hats"  PROPERTIES INTERPROCEDURAL_OPTIMIZATION True)
+	set_target_properties("606-toms"  PROPERTIES INTERPROCEDURAL_OPTIMIZATION True)
 
 	set_target_properties("analyser" PROPERTIES INTERPROCEDURAL_OPTIMIZATION True)
 
