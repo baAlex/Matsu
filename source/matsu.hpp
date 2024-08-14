@@ -403,12 +403,6 @@ inline void ExportAudioF64(const double* input, double sampling_frequency, size_
 
 class Analyser
 {
-	struct Output
-	{
-		size_t windows;
-		float difference;
-	};
-
 	PFFFT_Setup* pffft = nullptr;
 	float* window_a = nullptr;
 	float* window_b = nullptr;
@@ -419,6 +413,12 @@ class Analyser
 	size_t to_read_length = 0;
 
   public:
+	struct Output
+	{
+		size_t windows;
+		float difference;
+	};
+
 	Analyser(size_t window_lengths, size_t overlaps_no)
 	{
 		window_length = window_lengths;

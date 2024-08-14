@@ -24,7 +24,7 @@ struct Settings
 		return {
 		    6.0,   // Distortion
 		    0.125, // Distortion symmetry
-		    0.06   // Noise gain
+		    0.02   // Noise gain
 		};
 	}
 };
@@ -41,12 +41,12 @@ static size_t RenderHatClosed(Settings settings, double sampling_frequency, doub
 	auto oscillator_5 = SquareOscillator(306.0 * 1.28, sampling_frequency);
 	auto oscillator_6 = SquareOscillator(245.0 * 1.43, sampling_frequency);
 
-	auto bp_a = TwoPolesFilter<FilterType::Highpass>(6822.0, 3.5, sampling_frequency);
-	auto bp_b = OnePoleFilter<FilterType::Lowpass>(7802.0, sampling_frequency);
-	auto bp_c = OnePoleFilter<FilterType::Lowpass>(7951.0, sampling_frequency);
+	auto bp_a = TwoPolesFilter<FilterType::Highpass>(6900.0, 3.3, sampling_frequency);
+	auto bp_b = OnePoleFilter<FilterType::Lowpass>(7800.0, sampling_frequency);
+	auto bp_c = OnePoleFilter<FilterType::Lowpass>(7950.0, sampling_frequency);
 	auto bp_d = OnePoleFilter<FilterType::Lowpass>(10000.0, sampling_frequency);
 
-	auto hp = TwoPolesFilter<FilterType::Highpass>(8363.0, 0.75, sampling_frequency);
+	auto hp = TwoPolesFilter<FilterType::Highpass>(8400.0, 0.75, sampling_frequency);
 	auto lp = TwoPolesFilter<FilterType::Lowpass>(14000.0, 0.25, sampling_frequency);
 	const double lp_wet = 0.75; // Original one seems to die lovely at 22 MHz, it can
 	                            // be better filters, a nyquist sampling thing, or both.

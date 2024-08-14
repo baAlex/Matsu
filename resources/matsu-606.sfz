@@ -1,36 +1,35 @@
 
 <control>
-label_cc100=Kick vol
-set_cc100=64
+label_cc100=Kick amp
+set_cc100=100
 
-label_cc101=Snare vol
-set_cc101=64
+label_cc101=Snare amp
+set_cc101=100
 
-label_cc102=Hat closed vol
-set_cc102=30
+label_cc102=Hat closed amp
+set_cc102=15
 
-label_cc103=Hat open vol
-set_cc103=35
+label_cc103=Hat open amp
+set_cc103=20
 
-label_cc104=Tom low vol
-set_cc104=64
+label_cc104=Tom low amp
+set_cc104=100
 
-label_cc105=Tom high vol
-set_cc105=64
+label_cc105=Tom high amp
+set_cc105=100
 
-<group> group=1 volume=-24 loop_mode=one_shot
-<region> sample=606-kick.flac     key=B0 volume_oncc100=48
-<region> sample=606-kick.flac     key=C1 volume_oncc100=48
-<region> sample=606-snare.flac    key=D1 volume_oncc101=48
-<region> sample=606-snare.flac    key=E1 volume_oncc101=48
-<region> sample=606-tom-low.flac  key=F1 volume_oncc104=48
-<region> sample=606-tom-low.flac  key=G1 volume_oncc104=48
-<region> sample=606-tom-low.flac  key=A1 volume_oncc104=48
-<region> sample=606-tom-high.flac key=B1 volume_oncc105=48
-<region> sample=606-tom-high.flac key=C2 volume_oncc105=48
-<region> sample=606-tom-high.flac key=D2 volume_oncc105=48
+<group> group=1 loop_mode=one_shot
+<region> sample=606-kick.flac     key=B0 amplitude_oncc100=100
+<region> sample=606-kick.flac     key=C1 amplitude_oncc100=100
+<region> sample=606-snare.flac    key=D1 amplitude_oncc101=100
+<region> sample=606-snare.flac    key=E1 amplitude_oncc101=100
+<region> sample=606-tom-low.flac  key=F1 amplitude_oncc104=100
+<region> sample=606-tom-low.flac  key=G1 amplitude_oncc104=100
+<region> sample=606-tom-low.flac  key=A1 amplitude_oncc104=100
+<region> sample=606-tom-high.flac key=B1 amplitude_oncc105=100
+<region> sample=606-tom-high.flac key=C2 amplitude_oncc105=100
+<region> sample=606-tom-high.flac key=D2 amplitude_oncc105=100
 
-<group> group=2 off_by=2 volume=-24 loop_mode=one_shot off_mode=normal ampeg_release=0.07
-<region> sample=606-hat-closed.flac key=Gb1 volume_oncc102=48
-<region> sample=606-hat-closed.flac key=Ab1 volume_oncc102=48
-<region> sample=606-hat-open.flac   key=Bb1 volume_oncc103=48
+<group> group=2 off_by=2 loop_mode=one_shot off_mode=fast ampeg_release=0
+<region> sample=606-hat-closed.flac key=Gb1 amplitude_oncc102=100
+<region> sample=606-hat-open.flac   key=Bb1 amplitude_oncc103=100
