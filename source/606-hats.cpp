@@ -15,15 +15,37 @@ defined by the Mozilla Public License, v. 2.0.
 
 struct Settings
 {
-	double short_long_gain_ratio;
+	double long_length;
+	double short_length;
+	double long_gain;
+	double short_gain;
+
 	double distortion;
 	double distortion_symmetry;
 	double noise_gain;
 
-	static Settings Default()
+	static Settings DefaultHatOpen()
 	{
 		return {
-		    0.8,   // Short/long gain ratio
+		    1500.0, // Long length
+		    500.0,  // Short length
+		    1.0,    // Long gain
+		    0.8,    // Short gain
+
+		    6.0,   // Distortion
+		    0.125, // Distortion symmetry
+		    0.02   // Noise gain
+		};
+	}
+
+	static Settings DefaultHatClosed()
+	{
+		return {
+		    0.0,   // Long length
+		    150.0, // Short length
+		    0.0,   // Long gain
+		    1.0,   // Short gain
+
 		    6.0,   // Distortion
 		    0.125, // Distortion symmetry
 		    0.02   // Noise gain
@@ -31,10 +53,14 @@ struct Settings
 	}
 };
 
-static size_t RenderHatOpen(Settings settings, double sampling_frequency, double* output)
+static size_t RenderHat(Settings settings, double sampling_frequency, double* output)
 {
-	auto envelope_long = AdEnvelope(SamplesToMilliseconds(10, sampling_frequency), 1500.0, sampling_frequency);
-	auto envelope_short = AdEnvelope(SamplesToMilliseconds(10, sampling_frequency), 500.0, sampling_frequency);
+	auto envelope_long = //
+	    AdEnvelope2(SamplesToMilliseconds(10, sampling_frequency), settings.long_length, 0.01, 2.5, sampling_frequency);
+	auto envelope_short = //
+	    AdEnvelope2(SamplesToMilliseconds(10, sampling_frequency), settings.short_length, 0.01, 9.0,
+	                sampling_frequency);
+
 	auto noise = NoiseGenerator();
 
 	auto oscillator_1 = SquareOscillator(619.0 * 1.38, sampling_frequency);
@@ -56,9 +82,11 @@ static size_t RenderHatOpen(Settings settings, double sampling_frequency, double
 	                            // This wet/dry mix can get us somewhat there. A proper
 	                            // solution should be a weird '1.5 Poles Filter'.
 
+	const int samples = Max(envelope_long.GetTotalSamples(), envelope_short.GetTotalSamples());
+
 	// Render metallic noise
 	double max_level = 0.0;
-	for (int x = 0; x < envelope_long.GetTotalSamples(); x += 1)
+	for (int i = 0; i < samples; i += 1)
 	{
 		// Sum six square oscillators
 		double signal = oscillator_1.Step() + oscillator_2.Step() + oscillator_3.Step() //
@@ -72,57 +100,49 @@ static size_t RenderHatOpen(Settings settings, double sampling_frequency, double
 		signal = bp_d.Step(signal);
 
 		// Done!
-		output[x] = signal;
+		output[i] = signal;
 		max_level = Max(signal, max_level);
 	}
 
 	// Normalize, as distortion depends on volume
-	for (int x = 0; x < envelope_long.GetTotalSamples(); x += 1)
-		output[x] = output[x] * (1.0 / max_level);
+	for (int i = 0; i < samples; i += 1)
+		output[i] = output[i] * (1.0 / max_level);
 
 	// Distort and envelope it
 	max_level = 0.0;
-	for (int x = 0; x < envelope_long.GetTotalSamples(); x += 1)
+	for (int i = 0; i < samples; i += 1)
 	{
-		const double e_l = envelope_long.Get(
-		    x,                          //
-		    [](double x) { return x; }, //
-		    [](double x) { return ExponentialEasing(x, 2.5); });
+		const double e_long = envelope_long.Step();
+		const double e_short = envelope_short.Step();
+		double signal = output[i];
 
-		const double e_s = envelope_short.Get(
-		    x,                          //
-		    [](double x) { return x; }, //
-		    [](double x) { return ExponentialEasing(x, 9.0); });
-
-		double signal = output[x];
-
-		// Distort metallic noise, a highpass fix asymmetry
+		// Distort metallic noise, highpass to fix asymmetry
 		signal = Distortion(signal, -settings.distortion, settings.distortion_symmetry);
 		signal = hp.Step(signal);
 
-		// Apply envelope
-		signal = signal * (e_l + e_s * settings.short_long_gain_ratio);
+		// Apply envelopes
+		signal = signal * (e_long * settings.long_gain + e_short * settings.short_gain);
 
 		// Add transient noise, also enveloped
-		signal = signal + noise.Step() * (settings.noise_gain * e_s * settings.short_long_gain_ratio);
+		signal = signal + noise.Step() * (settings.noise_gain * e_short * settings.short_gain);
 
-		// Lowpass filter, otherwise we will sound too digital
+		// Lowpass filter, otherwise it will sound too digital
 		signal = Mix(signal, lp.Step(signal), lp_wet);
 
 		// Done!
-		output[x] = signal;
+		output[i] = signal;
 		max_level = Max(signal, max_level);
 	}
 
 	// Normalize one last time
-	for (int x = 0; x < envelope_long.GetTotalSamples(); x += 1)
+	for (int i = 0; i < samples; i += 1)
 	{
-		output[x] = output[x] * (1.0 / max_level);
-		output[x] = Clamp(output[x], -1.0, 1.0);
+		output[i] = output[i] * (1.0 / max_level);
+		output[i] = Clamp(output[i], -1.0, 1.0);
 	}
 
 	// Bye!
-	return static_cast<size_t>(envelope_long.GetTotalSamples());
+	return static_cast<size_t>(samples);
 }
 
 
@@ -134,9 +154,13 @@ int main(int argc, const char* argv[])
 	(void)argc;
 	(void)argv;
 
-	const size_t render_length = RenderHatOpen(Settings::Default(), SAMPLING_FREQUENCY, render_buffer);
+	size_t render_length = RenderHat(Settings::DefaultHatOpen(), SAMPLING_FREQUENCY, render_buffer);
 	ExportAudioS24(render_buffer, SAMPLING_FREQUENCY, render_length, "606-hat-open.wav");
 	ExportAudioF64(render_buffer, SAMPLING_FREQUENCY, render_length, "606-hat-open-64.wav");
+
+	render_length = RenderHat(Settings::DefaultHatClosed(), SAMPLING_FREQUENCY, render_buffer);
+	ExportAudioS24(render_buffer, SAMPLING_FREQUENCY, render_length, "606-hat-closed.wav");
+	ExportAudioF64(render_buffer, SAMPLING_FREQUENCY, render_length, "606-hat-closed-64.wav");
 
 	return 0;
 }

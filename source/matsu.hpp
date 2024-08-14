@@ -256,6 +256,45 @@ class AdEnvelope
 	double m_decay;
 };
 
+class AdEnvelope2
+{
+  public:
+	AdEnvelope2(double attack_duration, double decay_duration, double attack_shape, double decay_shape,
+	            double sampling_frequency)
+	{
+		m_attack = static_cast<double>(MillisecondsToSamples(attack_duration, sampling_frequency));
+		m_decay = static_cast<double>(MillisecondsToSamples(decay_duration, sampling_frequency));
+		m_attack_shape = attack_shape;
+		m_decay_shape = decay_shape;
+		m_x = 0;
+	}
+
+	int GetTotalSamples() const
+	{
+		return static_cast<int>(ceil(m_attack + m_decay));
+	}
+
+	double Step()
+	{
+		const double dx = static_cast<double>(m_x);
+		m_x = m_x + 1;
+
+		if (dx < m_attack)
+			return ExponentialEasing(dx / m_attack, m_attack_shape);
+		else if (dx < m_attack + m_decay)
+			return ExponentialEasing(1.0 - (dx - m_attack) / m_decay, m_decay_shape);
+
+		return 0.0;
+	}
+
+  private:
+	double m_attack;
+	double m_decay;
+	double m_attack_shape;
+	double m_decay_shape;
+	int m_x;
+};
+
 
 class NoiseGenerator
 {

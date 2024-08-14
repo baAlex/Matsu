@@ -2,8 +2,7 @@
 
 ./606-kick
 ./606-snare
-./606-hat-closed
-./606-hat-open
+./606-hats
 ./606-tom-low
 ./606-tom-high
 
