@@ -10,8 +10,8 @@ This Source Code Form is "Incompatible With Secondary Licenses", as
 defined by the Mozilla Public License, v. 2.0.
 */
 
-#ifndef RESOURCES_HPP
-#define RESOURCES_HPP
+#ifndef ANALYSER_RESOURCES_HPP
+#define ANALYSER_RESOURCES_HPP
 
 #include <stddef.h>
 #include <stdint.h>

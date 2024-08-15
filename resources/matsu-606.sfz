@@ -13,10 +13,10 @@ label_cc103=Hat open amp
 set_cc103=20
 
 label_cc104=Tom low amp
-set_cc104=100
+set_cc104=75
 
 label_cc105=Tom high amp
-set_cc105=100
+set_cc105=75
 
 <group> group=1 loop_mode=one_shot
 <region> sample=606-kick.flac     key=B0 amplitude_oncc100=100

@@ -10,8 +10,8 @@ This Source Code Form is "Incompatible With Secondary Licenses", as
 defined by the Mozilla Public License, v. 2.0.
 */
 
+#include "analyser-resources.hpp"
 #include "matsu.hpp"
-#include "resources.hpp"
 
 #include "thirdparty/cargs/include/cargs.h"
 #include "thirdparty/lodepng/lodepng.h"

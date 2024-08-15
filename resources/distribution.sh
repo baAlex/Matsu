@@ -3,8 +3,7 @@
 ./606-kick
 ./606-snare
 ./606-hats
-./606-tom-low
-./606-tom-high
+./606-toms
 
 flac -8 -e --no-padding -f 606-kick.wav
 flac -8 -e --no-padding -f 606-snare.wav
