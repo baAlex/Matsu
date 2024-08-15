@@ -56,10 +56,9 @@ struct Settings
 static size_t RenderHat(Settings settings, double sampling_frequency, double* output)
 {
 	auto envelope_long = //
-	    AdEnvelope2(SamplesToMilliseconds(10, sampling_frequency), settings.long_length, 0.01, 2.5, sampling_frequency);
+	    AdEnvelope(SamplesToMilliseconds(10, sampling_frequency), settings.long_length, 0.01, 2.5, sampling_frequency);
 	auto envelope_short = //
-	    AdEnvelope2(SamplesToMilliseconds(10, sampling_frequency), settings.short_length, 0.01, 9.0,
-	                sampling_frequency);
+	    AdEnvelope(SamplesToMilliseconds(10, sampling_frequency), settings.short_length, 0.01, 9.0, sampling_frequency);
 
 	auto noise = NoiseGenerator();
 
@@ -101,7 +100,7 @@ static size_t RenderHat(Settings settings, double sampling_frequency, double* ou
 
 		// Done!
 		output[i] = signal;
-		max_level = Max(signal, max_level);
+		max_level = Max(abs(signal), max_level);
 	}
 
 	// Normalize, as distortion depends on volume
@@ -131,7 +130,7 @@ static size_t RenderHat(Settings settings, double sampling_frequency, double* ou
 
 		// Done!
 		output[i] = signal;
-		max_level = Max(signal, max_level);
+		max_level = Max(abs(signal), max_level);
 	}
 
 	// Normalize one last time

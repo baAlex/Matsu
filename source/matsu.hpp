@@ -227,40 +227,8 @@ template <FilterType TYPE> class TwoPolesFilter
 class AdEnvelope
 {
   public:
-	AdEnvelope(double attack_duration, double decay_duration, double sampling_frequency)
-	{
-		m_attack = static_cast<double>(MillisecondsToSamples(attack_duration, sampling_frequency));
-		m_decay = static_cast<double>(MillisecondsToSamples(decay_duration, sampling_frequency));
-	}
-
-	int GetTotalSamples() const
-	{
-		return static_cast<int>(ceil(m_attack + m_decay));
-	}
-
-	template <typename LAMBDA1, typename LAMBDA2> // 'std::function' incurs in lot of allocations
-	double Get(int x, LAMBDA1 a_easing, LAMBDA2 d_easing)
-	{
-		const double dx = static_cast<double>(x);
-
-		if (dx < m_attack)
-			return a_easing(dx / m_attack);
-		else if (dx < m_attack + m_decay)
-			return d_easing(1.0 - (dx - m_attack) / m_decay);
-
-		return 0.0;
-	}
-
-  private:
-	double m_attack;
-	double m_decay;
-};
-
-class AdEnvelope2
-{
-  public:
-	AdEnvelope2(double attack_duration, double decay_duration, double attack_shape, double decay_shape,
-	            double sampling_frequency)
+	AdEnvelope(double attack_duration, double decay_duration, double attack_shape, double decay_shape,
+	           double sampling_frequency)
 	{
 		m_attack = static_cast<double>(MillisecondsToSamples(attack_duration, sampling_frequency));
 		m_decay = static_cast<double>(MillisecondsToSamples(decay_duration, sampling_frequency));
@@ -318,54 +286,7 @@ class Oscillator
 {
   public:
 	Oscillator(double frequency_a, double frequency_b, double feedback_level_a, double feedback_level_b,
-	           double duration, double sampling_frequency)
-	{
-		m_phase = 0.0;
-		m_phase_delta_a = (frequency_a / sampling_frequency) * M_PI_TWO;
-		m_phase_delta_b = (frequency_b / sampling_frequency) * M_PI_TWO;
-
-		m_sweep = 0.0;
-		m_sweep_delta = 1.0 / static_cast<double>(MillisecondsToSamples(duration, sampling_frequency));
-
-		m_feedback = 0.0;
-		m_feedback_level_a = feedback_level_a / (M_PI / 2.0); // For a maximum 'feedback_level' of 1
-		m_feedback_level_b = feedback_level_b / (M_PI / 2.0); // Ditto
-	}
-
-	template <typename LAMBDA> double Step(LAMBDA s_easing)
-	{
-		const double s = Min(s_easing(m_sweep), 1.0);
-		const double phase_delta = Mix(m_phase_delta_a, m_phase_delta_b, s);
-		const double feedback_level = Mix(m_feedback_level_a, m_feedback_level_b, s);
-
-		m_phase = fmod(m_phase + phase_delta, M_PI_TWO);
-		m_sweep = Min(m_sweep + m_sweep_delta, 1.0);
-
-		const double signal = sin(m_phase + m_feedback);
-		m_feedback = (m_feedback + signal) * feedback_level;
-
-		return signal;
-	}
-
-  private:
-	double m_phase;
-	double m_phase_delta_a;
-	double m_phase_delta_b;
-
-	double m_sweep;
-	double m_sweep_delta;
-
-	double m_feedback;
-	double m_feedback_level_a;
-	double m_feedback_level_b;
-};
-
-
-class Oscillator2
-{
-  public:
-	Oscillator2(double frequency_a, double frequency_b, double feedback_level_a, double feedback_level_b,
-	            double duration, double sweep_shape, double sampling_frequency)
+	           double duration, double sweep_shape, double sampling_frequency)
 	{
 		m_phase = 0.0;
 		m_phase_delta_a = (frequency_a / sampling_frequency) * M_PI_TWO;
@@ -644,16 +565,24 @@ class Analyser
 			// Output
 			output_callback(ret.windows, window_length, window_c);
 
-			// Next step?
-			if (read != static_cast<drwav_uint64>(to_read_length))
-				break;
-
-			if (read2 != 0 && read2 != static_cast<drwav_uint64>(to_read_length))
-				break;
-
 			// Scroll window
+			bool window_still_has_content = false;
 			for (size_t i = 0; i < (window_length - to_read_length); i += 1)
+			{
 				window_a[i] = window_a[i + to_read_length];
+				if (window_a[i] != 0.0)
+					window_still_has_content = true;
+			}
+
+			if (window_still_has_content == false)
+			{
+				// Next step?
+				if (read != static_cast<drwav_uint64>(to_read_length))
+					break;
+
+				if (read2 != 0 && read2 != static_cast<drwav_uint64>(to_read_length))
+					break;
+			}
 
 			if (read2 != 0)
 			{

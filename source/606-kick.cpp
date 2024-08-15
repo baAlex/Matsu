@@ -13,76 +13,124 @@ defined by the Mozilla Public License, v. 2.0.
 #include "matsu.hpp"
 
 
-static int RenderKick(double sampling_frequency, double** out)
+struct Settings
 {
-	auto click = AdEnvelope(SamplesToMilliseconds(49, sampling_frequency),
-	                        SamplesToMilliseconds(64, sampling_frequency), sampling_frequency);
+	double oscillator1_length;
+	double oscillator1_gain;
+	double oscillator1_frequency;
+	double oscillator1_feedback;
 
-	auto envelope1 = AdEnvelope(0.0, 300.0, sampling_frequency);
-	auto envelope2 = AdEnvelope(0.0, 70.0, sampling_frequency);
+	double oscillator2_length;
+	double oscillator2_gain;
+	double oscillator2_frequency;
+	double oscillator2_feedback;
 
-	auto oscillator1 = Oscillator(60.0, 60.0, 0.0, 0.0, 300.0, sampling_frequency);
-	auto oscillator2 = Oscillator(120.0, 120.0, 0.1, 0.1, 70.0, sampling_frequency);
+	double click_gain;
 
-	const double oscillator1_gain = 0.8;
-	const double oscillator2_gain = 0.4;
+	static Settings Default()
+	{
+		return {
+		    300.0, // Oscillator 1 length
+		    0.8,   // Oscillator 1 gain
+		    60.0,  // Oscillator 1 frequency
+		    0.0,   // Oscillator 1 feedback
 
-	// Render
-	for (int x = 0; x < click.GetTotalSamples(); x += 1)
+		    70.0,  // Oscillator 2 length
+		    0.4,   // Oscillator 2 gain
+		    120.0, // Oscillator 2 frequency
+		    0.1,   // Oscillator 2 feedback
+
+		    1.0 // Click gain
+		};
+	}
+};
+
+static size_t RenderKick(Settings settings, double sampling_frequency, double* output)
+{
+	auto envelope1 = AdEnvelope(0.0, settings.oscillator1_length, 0.01, 8.0, sampling_frequency);
+	auto envelope2 = AdEnvelope(0.0, settings.oscillator2_length, 0.01, 8.0, sampling_frequency);
+
+	auto oscillator1 =
+	    Oscillator(settings.oscillator1_frequency, settings.oscillator1_frequency, settings.oscillator1_feedback, 0.0,
+	               settings.oscillator1_length, 8.0, sampling_frequency);
+	auto oscillator2 =
+	    Oscillator(settings.oscillator2_frequency, settings.oscillator2_frequency, settings.oscillator2_feedback, 0.0,
+	               settings.oscillator2_length, 8.0, sampling_frequency);
+
+	const int click_attack = static_cast<int>(50.0 * (sampling_frequency / 44100.0)); // TODO
+	const int click_decay = static_cast<int>(64.0 * (sampling_frequency / 44100.0));  // Ditto
+	const int click_length = click_attack + click_decay;
+
+	const int samples = click_length + Max(envelope1.GetTotalSamples(), envelope2.GetTotalSamples());
+
+	// Render click
+	double max_level = 0.0;
+	for (int i = 0; i < click_length; i += 1)
 	{
 		const double e1 = 0.7;
 		const double e2 = 2.35;
 		const double e3 = 1.14;
 		const double e4 = 3.0;
 
-		const double signal = click.Get(
-		    x,                                    //
-		    [&](double x) { return pow(x, e1); }, //
-		    [&](double x) { return pow(x, e3 + (e2 - e3) * pow(x, e4)); });
+		double signal;
 
-		**out = -signal;
-		*out += 1;
+		if (i < click_attack)
+		{
+			signal = static_cast<double>(i) / static_cast<double>(click_attack);
+			signal = pow(signal, e1);
+		}
+		else
+		{
+			signal = 1.0 - (static_cast<double>(i - click_attack) / static_cast<double>(click_decay));
+			signal = pow(signal, e3 + (e2 - e3) * pow(signal, e4));
+		}
+
+		signal = -signal * settings.click_gain;
+
+		output[i] = signal;
+		max_level = Max(abs(signal), max_level);
 	}
 
-	for (int x = 0; x < Max(envelope1.GetTotalSamples(), envelope2.GetTotalSamples()); x += 1)
+	// Render body
+	for (int i = click_length; i < samples; i += 1)
 	{
-		const double e1 = envelope1.Get(
-		    x,                          //
-		    [](double x) { return x; }, //
-		    [](double x) { return ExponentialEasing(x, 8.0); });
+		const double e1 = envelope1.Step();
+		const double e2 = envelope2.Step();
 
-		const double e2 = envelope2.Get(
-		    x,                          //
-		    [](double x) { return x; }, //
-		    [](double x) { return ExponentialEasing(x, 8.0); });
+		// Two oscillators
+		const double o1 = oscillator1.Step();
+		const double o2 = oscillator2.Step();
 
-		const double o1 = oscillator1.Step( //
-		    [](double x) { return 1.0 - ExponentialEasing(1.0 - x, 8.0); });
+		const double signal = (o1 * e1 * settings.oscillator1_gain) + (o2 * e2 * settings.oscillator2_gain);
 
-		const double o2 = oscillator2.Step( //
-		    [](double x) { return 1.0 - ExponentialEasing(1.0 - x, 8.0); });
+		// Done!
+		output[i] = signal;
+		max_level = Max(abs(signal), max_level);
+	}
 
-		const double mix = (o1 * e1 * oscillator1_gain) + (o2 * e2 * oscillator2_gain);
-
-		**out = mix;
-		*out += 1;
+	// Normalize
+	for (int i = 0; i < samples; i += 1)
+	{
+		output[i] = output[i] * (1.0 / max_level);
+		output[i] = Clamp(output[i], -1.0, 1.0);
 	}
 
 	// Bye!
-	return 0;
+	return static_cast<size_t>(samples);
 }
 
 
 static constexpr double SAMPLING_FREQUENCY = 44100.0;
 static double render_buffer[static_cast<size_t>(SAMPLING_FREQUENCY) * 2];
 
-int main()
+int main(int argc, const char* argv[])
 {
-	double* cursor = render_buffer;
-	RenderKick(SAMPLING_FREQUENCY, &cursor);
+	(void)argc;
+	(void)argv;
 
-	ExportAudioS24(render_buffer, SAMPLING_FREQUENCY, static_cast<size_t>(cursor - render_buffer), "606-kick.wav");
-	ExportAudioF64(render_buffer, SAMPLING_FREQUENCY, static_cast<size_t>(cursor - render_buffer), "606-kick-64.wav");
+	size_t render_length = RenderKick(Settings::Default(), SAMPLING_FREQUENCY, render_buffer);
+	ExportAudioS24(render_buffer, SAMPLING_FREQUENCY, render_length, "606-kick.wav");
+	ExportAudioF64(render_buffer, SAMPLING_FREQUENCY, render_length, "606-kick-64.wav");
 
 	return 0;
 }

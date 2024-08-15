@@ -58,11 +58,11 @@ struct Settings
 
 static size_t RenderTom(Settings settings, double sampling_frequency, double* output)
 {
-	auto envelope_oscillator = AdEnvelope2(0.0, settings.oscillator_length, 0.01, 8.0, sampling_frequency);
-	auto envelope_noise = AdEnvelope2(0.0, settings.noise_length, 0.01, 4.0, sampling_frequency);
+	auto envelope_oscillator = AdEnvelope(0.0, settings.oscillator_length, 0.01, 8.0, sampling_frequency);
+	auto envelope_noise = AdEnvelope(0.0, settings.noise_length, 0.01, 4.0, sampling_frequency);
 
-	auto oscillator = Oscillator2(settings.frequency_a, settings.frequency_b, settings.feedback, 0.00,
-	                              settings.oscillator_length, 8.0, sampling_frequency);
+	auto oscillator = Oscillator(settings.frequency_a, settings.frequency_b, settings.feedback, 0.00,
+	                             settings.oscillator_length, 8.0, sampling_frequency);
 	auto noise = NoiseGenerator();
 
 	auto lp = OnePoleFilter<FilterType::Lowpass>(700.0, sampling_frequency);
@@ -74,6 +74,7 @@ static size_t RenderTom(Settings settings, double sampling_frequency, double* ou
 	const int samples = click_length + Max(envelope_oscillator.GetTotalSamples(), envelope_noise.GetTotalSamples());
 
 	// Render click
+	double max_level = 0.0;
 	for (int i = 0; i < click_length; i += 1)
 	{
 		const double e1 = 0.5;
@@ -93,11 +94,13 @@ static size_t RenderTom(Settings settings, double sampling_frequency, double* ou
 			         sin(signal * 0.5 * M_PI) * signal;
 		}
 
-		output[i] = -signal * settings.click_gain;
+		signal = -signal * settings.click_gain;
+
+		output[i] = signal;
+		max_level = Max(abs(signal), max_level);
 	}
 
 	// Render body
-	double max_level = 0.0;
 	for (int i = click_length; i < samples; i += 1)
 	{
 		const double e_o = envelope_oscillator.Step();
@@ -111,7 +114,7 @@ static size_t RenderTom(Settings settings, double sampling_frequency, double* ou
 
 		// Done!
 		output[i] = signal;
-		max_level = Max(signal, max_level);
+		max_level = Max(abs(signal), max_level);
 	}
 
 	// Normalize

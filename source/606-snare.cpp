@@ -13,63 +13,88 @@ defined by the Mozilla Public License, v. 2.0.
 #include "matsu.hpp"
 
 
-static int RenderSnare(double sampling_frequency, double** out)
+struct Settings
 {
-	auto envelope_o = AdEnvelope(2.0, 150.0 - 2.0, sampling_frequency);
-	auto envelope_n = AdEnvelope(2.0, 150.0 - 2.0, sampling_frequency);
+	double oscillator_length;
+	double noise_length;
+	double oscillator_gain;
+	double noise_gain;
 
-	auto oscillator = Oscillator(320.0 /* 340 */, 190.0 /* 170 */, 0.0, 0.0, 150.0, sampling_frequency);
+	double frequency_a;
+	double frequency_b;
+	double feedback;
 
+	static Settings Default()
+	{
+		return {
+		    150.0, // Oscillator length
+		    150.0, // Noise length
+		    0.7,   // Oscillator gain
+		    0.9,   // Noise gain
+
+		    320.0, // Frequency a
+		    190.0, // Frequency b
+		    0.0    // Feedback
+		};
+	}
+};
+
+static size_t RenderSnare(Settings settings, double sampling_frequency, double* output)
+{
+	auto envelope_oscillator = AdEnvelope(2.0, settings.oscillator_length - 2.0, 0.01, 8.0, sampling_frequency);
+	auto envelope_noise = AdEnvelope(2.0, settings.noise_length - 2.0, 0.01, 9.0, sampling_frequency);
+
+	auto oscillator = Oscillator(settings.frequency_a, settings.frequency_b, settings.feedback, 0.0,
+	                             settings.oscillator_length, 8.0, sampling_frequency);
 	auto noise = NoiseGenerator();
-	auto hp = TwoPolesFilter<FilterType::Highpass>(2200.0 * SemitoneDetune(3.5), 0.75, sampling_frequency);
-	auto lp1 = OnePoleFilter<FilterType::Lowpass>(2200.0 * SemitoneDetune(3.5), sampling_frequency);
-	auto lp2 = TwoPolesFilter<FilterType::Lowpass>(16000.0, 0.5, sampling_frequency);
 
-	const double noise_gain = 0.9;      // 0.9, 1.0
-	const double oscillator_gain = 0.7; // 0.7
+	auto bp_a = TwoPolesFilter<FilterType::Highpass>(2700.0, 0.75, sampling_frequency);
+	auto bp_b = TwoPolesFilter<FilterType::Lowpass>(16000.0, 0.5, sampling_frequency);
+	auto bp_c = OnePoleFilter<FilterType::Lowpass>(2700.0, sampling_frequency);
+
+	const int samples = Max(envelope_oscillator.GetTotalSamples(), envelope_noise.GetTotalSamples());
 
 	// Render
-	for (int x = 0; x < Max(envelope_o.GetTotalSamples(), envelope_n.GetTotalSamples()); x += 1)
+	double max_level = 0.0;
+	for (int i = 0; i < samples; i += 1)
 	{
-		const double e_o = envelope_o.Get(
-		    x,                          //
-		    [](double x) { return x; }, //
-		    [](double x) { return ExponentialEasing(x, 8.0); });
+		const double e_o = envelope_oscillator.Step();
+		const double e_n = envelope_noise.Step();
 
-		const double e_n = envelope_n.Get(
-		    x,                                                   //
-		    [](double x) { return x; },                          //
-		    [](double x) { return ExponentialEasing(x, 9.0); }); // 8, 11
+		// Oscillator plus bandpass'ed noise
+		const double o = oscillator.Step();
+		const double n = bp_c.Step(bp_b.Step(bp_a.Step(noise.Step())));
 
-		const double o = oscillator.Step( //
-		    [](double x) { return 1.0 - ExponentialEasing(1.0 - x, 8.0); });
+		const double signal = (o * e_o * settings.oscillator_gain) + (n * e_n * settings.noise_gain);
 
-		double n = noise.Step();
-		n = hp.Step(n);
-		n = lp2.Step(n);
-		n = lp1.Step(n);
+		// Done!
+		output[i] = signal;
+		max_level = Max(abs(signal), max_level);
+	}
 
-		const double mix = (o * e_o * oscillator_gain) + (n * e_n * noise_gain);
-
-		**out = mix;
-		*out += 1;
+	// Normalize
+	for (int i = 0; i < samples; i += 1)
+	{
+		output[i] = output[i] * (1.0 / max_level);
+		output[i] = Clamp(output[i], -1.0, 1.0);
 	}
 
 	// Bye!
-	return 0;
+	return static_cast<size_t>(samples);
 }
 
 
 static constexpr double SAMPLING_FREQUENCY = 44100.0;
 static double render_buffer[static_cast<size_t>(SAMPLING_FREQUENCY) * 2];
 
-int main()
+int main(int argc, const char* argv[])
 {
-	double* cursor = render_buffer;
-	RenderSnare(SAMPLING_FREQUENCY, &cursor);
+	(void)argc;
+	(void)argv;
 
-	ExportAudioS24(render_buffer, SAMPLING_FREQUENCY, static_cast<size_t>(cursor - render_buffer), "606-snare.wav");
-	ExportAudioF64(render_buffer, SAMPLING_FREQUENCY, static_cast<size_t>(cursor - render_buffer), "606-snare-64.wav");
+	size_t render_length = RenderSnare(Settings::Default(), SAMPLING_FREQUENCY, render_buffer);
+	ExportAudioS24(render_buffer, SAMPLING_FREQUENCY, render_length, "606-snare.wav");
+	ExportAudioF64(render_buffer, SAMPLING_FREQUENCY, render_length, "606-snare-64.wav");
 
 	return 0;
 }
