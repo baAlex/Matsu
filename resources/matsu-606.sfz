@@ -4,7 +4,7 @@ label_cc100=Kick amp
 set_cc100=100
 
 label_cc101=Snare amp
-set_cc101=100
+set_cc101=90
 
 label_cc102=Hat closed amp
 set_cc102=15
@@ -17,6 +17,9 @@ set_cc104=75
 
 label_cc105=Tom high amp
 set_cc105=75
+
+label_cc106=Cymbal amp
+set_cc106=30
 
 <group> group=1 loop_mode=one_shot
 <region> sample=606-kick.flac     key=B0 amplitude_oncc100=100
@@ -33,3 +36,4 @@ set_cc105=75
 <group> group=2 off_by=2 loop_mode=one_shot off_mode=fast ampeg_release=0
 <region> sample=606-hat-closed.flac key=Gb1 amplitude_oncc102=100
 <region> sample=606-hat-open.flac   key=Bb1 amplitude_oncc103=100
+<region> sample=606-cymbal.flac     key=Db2 amplitude_oncc106=100

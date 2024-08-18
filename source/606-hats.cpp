@@ -53,6 +53,65 @@ struct Settings
 	}
 };
 
+
+class Squares
+{
+  public:
+	Squares(double sampling_frequency)
+	    : m_osc1(619.0 * 1.38, sampling_frequency), //
+	      m_osc2(437.0 * 1.12, sampling_frequency), //
+	      m_osc3(415.0 * 1.67, sampling_frequency), //
+	      m_osc4(365.0 * 1.16, sampling_frequency), //
+	      m_osc5(306.0 * 1.28, sampling_frequency), //
+	      m_osc6(245.0 * 1.43, sampling_frequency)
+	{
+	}
+
+	double Step()
+	{
+		const double signal = m_osc1.Step() + m_osc2.Step() + m_osc3.Step() //
+		                      + m_osc4.Step() + m_osc5.Step() + m_osc6.Step();
+		return signal / 6.0;
+	}
+
+  private:
+	SquareOscillator m_osc1;
+	SquareOscillator m_osc2;
+	SquareOscillator m_osc3;
+	SquareOscillator m_osc4;
+	SquareOscillator m_osc5;
+	SquareOscillator m_osc6;
+};
+
+
+class SharedBandpass
+{
+  public:
+	SharedBandpass(double sampling_frequency)
+	    : m_filter1(6900.0, 3.3, sampling_frequency), //
+	      m_filter2(7800.0, sampling_frequency),      //
+	      m_filter3(7950.0, sampling_frequency),      //
+	      m_filter4(10000.0, sampling_frequency)
+	{
+	}
+
+	double Step(double signal)
+	{
+		signal = m_filter1.Step(signal);
+		signal = m_filter2.Step(signal);
+		signal = m_filter3.Step(signal);
+		signal = m_filter4.Step(signal);
+		return signal;
+	}
+
+  private:
+	TwoPolesFilter<FilterType::Highpass> m_filter1;
+	OnePoleFilter<FilterType::Lowpass> m_filter2;
+	OnePoleFilter<FilterType::Lowpass> m_filter3;
+	OnePoleFilter<FilterType::Lowpass> m_filter4;
+};
+
+
 static size_t RenderHat(Settings settings, double sampling_frequency, double* output)
 {
 	auto envelope_long = //
@@ -61,18 +120,8 @@ static size_t RenderHat(Settings settings, double sampling_frequency, double* ou
 	    AdEnvelope(SamplesToMilliseconds(10, sampling_frequency), settings.short_length, 0.01, 9.0, sampling_frequency);
 
 	auto noise = NoiseGenerator();
-
-	auto oscillator_1 = SquareOscillator(619.0 * 1.38, sampling_frequency);
-	auto oscillator_2 = SquareOscillator(437.0 * 1.12, sampling_frequency);
-	auto oscillator_3 = SquareOscillator(415.0 * 1.67, sampling_frequency);
-	auto oscillator_4 = SquareOscillator(365.0 * 1.16, sampling_frequency);
-	auto oscillator_5 = SquareOscillator(306.0 * 1.28, sampling_frequency);
-	auto oscillator_6 = SquareOscillator(245.0 * 1.43, sampling_frequency);
-
-	auto bp_a = TwoPolesFilter<FilterType::Highpass>(6900.0, 3.3, sampling_frequency);
-	auto bp_b = OnePoleFilter<FilterType::Lowpass>(7800.0, sampling_frequency);
-	auto bp_c = OnePoleFilter<FilterType::Lowpass>(7950.0, sampling_frequency);
-	auto bp_d = OnePoleFilter<FilterType::Lowpass>(10000.0, sampling_frequency);
+	auto squares = Squares(sampling_frequency);
+	auto bandpass = SharedBandpass(sampling_frequency);
 
 	auto hp = TwoPolesFilter<FilterType::Highpass>(8400.0, 0.75, sampling_frequency);
 	auto lp = TwoPolesFilter<FilterType::Lowpass>(14000.0, 0.25, sampling_frequency);
@@ -87,16 +136,11 @@ static size_t RenderHat(Settings settings, double sampling_frequency, double* ou
 	double max_level = 0.0;
 	for (int i = 0; i < samples; i += 1)
 	{
-		// Sum six square oscillators
-		double signal = oscillator_1.Step() + oscillator_2.Step() + oscillator_3.Step() //
-		                + oscillator_4.Step() + oscillator_5.Step() + oscillator_6.Step();
-		signal = signal / 6.0;
+		// Six square oscillators
+		double signal = squares.Step();
 
 		// Band pass them
-		signal = bp_a.Step(signal);
-		signal = bp_b.Step(signal);
-		signal = bp_c.Step(signal);
-		signal = bp_d.Step(signal);
+		signal = bandpass.Step(signal);
 
 		// Done!
 		output[i] = signal;
@@ -145,8 +189,133 @@ static size_t RenderHat(Settings settings, double sampling_frequency, double* ou
 }
 
 
+struct SettingsCymbal
+{
+	double long_length;
+	double short_length;
+	double long_gain;
+	double short_gain;
+
+	double distortion;
+	double distortion_symmetry;
+	double noise_gain;
+
+	static SettingsCymbal Default()
+	{
+		return {
+		    1500.0, // Long length
+		    300.0,  // Short length
+		    0.15,   // Long gain
+		    1.0,    // Short gain
+
+		    6.0,   // Distortion
+		    0.125, // Distortion symmetry
+		    0.02   // Noise gain
+		};
+	}
+};
+
+
+static size_t RenderCymbal(SettingsCymbal settings, double sampling_frequency, double* auxiliary, double* output)
+{
+	auto envelope_long = //
+	    AdEnvelope(SamplesToMilliseconds(80, sampling_frequency), settings.long_length, 0.01, 2.5, sampling_frequency);
+	auto envelope_short = //
+	    AdEnvelope(SamplesToMilliseconds(80, sampling_frequency), settings.short_length, 0.01, 9.0, sampling_frequency);
+
+	auto noise = NoiseGenerator();
+	auto squares = Squares(sampling_frequency);
+	auto bandpass = SharedBandpass(sampling_frequency);
+
+	auto bp1 = TwoPolesFilter<FilterType::Lowpass>(3500.0, 4.0, sampling_frequency);
+	auto bp2 = TwoPolesFilter<FilterType::Highpass>(1000.0, 0.5, sampling_frequency);
+	auto bp3 = TwoPolesFilter<FilterType::Lowpass>(3500.0, 4.0, sampling_frequency);
+
+	auto hp = TwoPolesFilter<FilterType::Highpass>(8400.0, 0.75, sampling_frequency);
+	auto lp = TwoPolesFilter<FilterType::Lowpass>(14000.0, 0.25, sampling_frequency);
+	const double lp_wet = 0.75; // Original one seems to die lovely at 22 MHz, it can
+	                            // be better filters, a nyquist sampling thing, or both.
+	                            // This wet/dry mix can get us somewhat there. A proper
+	                            // solution should be a weird '1.5 Poles Filter'.
+
+	const int samples = Max(envelope_long.GetTotalSamples(), envelope_short.GetTotalSamples());
+
+	// Render metallic noise
+	double out_max_level = 0.0;
+	double aux_max_level = 0.0;
+	for (int i = 0; i < samples; i += 1)
+	{
+		// Six square oscillators
+		double signal = squares.Step();
+
+		// Band pass them
+		double out_signal = bandpass.Step(signal);
+		double aux_signal = bp2.Step(bp1.Step(signal));
+
+		// Done!
+		output[i] = out_signal;
+		out_max_level = Max(abs(out_signal), out_max_level);
+
+		auxiliary[i] = aux_signal;
+		aux_max_level = Max(abs(aux_signal), aux_max_level);
+	}
+
+	// Normalize, as distortion depends on volume
+	for (int i = 0; i < samples; i += 1)
+	{
+		output[i] = output[i] * (1.0 / out_max_level);
+		auxiliary[i] = auxiliary[i] * (1.0 / aux_max_level);
+	}
+
+	// Distort and envelope it
+	out_max_level = 0.0;
+	for (int i = 0; i < samples; i += 1)
+	{
+		const double e_long = envelope_long.Step();
+		const double e_short = envelope_short.Step();
+
+		double signal1 = output[i];
+		double signal2 = auxiliary[i];
+
+		// Distort metallic noise, highpass to fix asymmetry
+		signal1 = Distortion(signal1, -settings.distortion, settings.distortion_symmetry);
+		signal1 = hp.Step(signal1);
+
+		signal2 = Distortion(signal2, -settings.distortion * 2.0, settings.distortion_symmetry);
+		signal2 = bp3.Step(signal2); // Not quite a highpass here
+
+		// Apply envelopes
+		signal1 = signal1 * (e_long * settings.long_gain + e_short * settings.short_gain);
+		signal2 = signal2 * (e_long * settings.long_gain);
+
+		double signal = Mix(signal1, signal2, 0.04);
+
+		// Add noise, also enveloped
+		signal = signal + noise.Step() * (settings.noise_gain * e_long * settings.long_gain);
+
+		// Lowpass filter, otherwise it will sound too digital
+		signal = Mix(signal, lp.Step(signal), lp_wet);
+
+		// Done!
+		output[i] = signal;
+		out_max_level = Max(abs(signal), out_max_level);
+	}
+
+	// Normalize one last time
+	for (int i = 0; i < samples; i += 1)
+	{
+		output[i] = output[i] * (1.0 / out_max_level);
+		output[i] = Clamp(output[i], -1.0, 1.0);
+	}
+
+	// Bye!
+	return static_cast<size_t>(samples);
+}
+
+
 static constexpr double SAMPLING_FREQUENCY = 44100.0;
 static double render_buffer[static_cast<size_t>(SAMPLING_FREQUENCY) * 2];
+static double auxiliary_buffer[static_cast<size_t>(SAMPLING_FREQUENCY) * 2];
 
 int main(int argc, const char* argv[])
 {
@@ -160,6 +329,10 @@ int main(int argc, const char* argv[])
 	render_length = RenderHat(Settings::DefaultHatClosed(), SAMPLING_FREQUENCY, render_buffer);
 	ExportAudioS24(render_buffer, SAMPLING_FREQUENCY, render_length, "606-hat-closed.wav");
 	ExportAudioF64(render_buffer, SAMPLING_FREQUENCY, render_length, "606-hat-closed-64.wav");
+
+	render_length = RenderCymbal(SettingsCymbal::Default(), SAMPLING_FREQUENCY, auxiliary_buffer, render_buffer);
+	ExportAudioS24(render_buffer, SAMPLING_FREQUENCY, render_length, "606-cymbal.wav");
+	ExportAudioF64(render_buffer, SAMPLING_FREQUENCY, render_length, "606-cymbal-64.wav");
 
 	return 0;
 }
