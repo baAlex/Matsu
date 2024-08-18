@@ -1,25 +1,25 @@
 
 <control>
-label_cc100=Kick amp
+label_cc100=Kick Vol
 set_cc100=100
 
-label_cc101=Snare amp
+label_cc101=Snare Vol
 set_cc101=90
 
-label_cc102=Hat closed amp
-set_cc102=15
+label_cc102=Hat Closed Vol
+set_cc102=20
 
-label_cc103=Hat open amp
-set_cc103=20
+label_cc103=Hat Open Vol
+set_cc103=30
 
-label_cc104=Tom low amp
+label_cc104=Tom Low Vol
 set_cc104=75
 
-label_cc105=Tom high amp
+label_cc105=Tom High Vol
 set_cc105=75
 
-label_cc106=Cymbal amp
-set_cc106=30
+label_cc106=Cymbal Vol
+set_cc106=60
 
 <group> group=1 loop_mode=one_shot
 <region> sample=606-kick.flac     key=B0 amplitude_oncc100=100
@@ -32,8 +32,9 @@ set_cc106=30
 <region> sample=606-tom-high.flac key=B1 amplitude_oncc105=100
 <region> sample=606-tom-high.flac key=C2 amplitude_oncc105=100
 <region> sample=606-tom-high.flac key=D2 amplitude_oncc105=100
+<region> sample=606-cymbal.flac   key=Db2 amplitude_oncc106=100
 
 <group> group=2 off_by=2 loop_mode=one_shot off_mode=fast ampeg_release=0
 <region> sample=606-hat-closed.flac key=Gb1 amplitude_oncc102=100
+<region> sample=606-hat-closed.flac key=Ab1 amplitude_oncc102=100
 <region> sample=606-hat-open.flac   key=Bb1 amplitude_oncc103=100
-<region> sample=606-cymbal.flac     key=Db2 amplitude_oncc106=100
