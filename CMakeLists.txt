@@ -21,7 +21,6 @@ endif ()
 
 add_subdirectory("source/thirdparty/lodepng_cmake/")
 add_subdirectory("source/thirdparty/pffft_cmake/")
-add_subdirectory("source/thirdparty/cargs/")
 
 
 add_library("matsu" STATIC "source/matsu.cpp")
@@ -48,9 +47,8 @@ target_link_libraries("606-toms" PRIVATE "matsu")
 
 add_executable("analyser" "source/analyser.cpp")
 target_compile_options("analyser" PRIVATE ${MATSU_CFLAGS})
-target_link_libraries("analyser" PRIVATE "lodepng")
-target_link_libraries("analyser" PRIVATE "cargs")
 target_link_libraries("analyser" PRIVATE "matsu")
+target_link_libraries("analyser" PRIVATE "lodepng")
 
 
 if (CMAKE_BUILD_TYPE STREQUAL "Release")

@@ -10,8 +10,34 @@ This Source Code Form is "Incompatible With Secondary Licenses", as
 defined by the Mozilla Public License, v. 2.0.
 */
 
+#include <limits.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "matsu.hpp"
+
+#include "thirdparty/argh/argh.h"
+#include "thirdparty/lodepng/lodepng.h"
+
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wold-style-cast"
+#pragma clang diagnostic ignored "-Wsign-conversion"
+#pragma clang diagnostic ignored "-Wimplicit-int-conversion"
+#pragma clang diagnostic ignored "-Wimplicit-int-float-conversion"
+
+#include "thirdparty/dr_libs/dr_wav.h"
+#pragma clang diagnostic pop
+
+#else
+#include "thirdparty/dr_libs/dr_wav.h"
+#endif
+
+
+// ################
+
 
 struct Character
 {
@@ -46,9 +72,6 @@ struct Palette
 	size_t length;
 	const Colour* colours;
 };
-
-
-// ========
 
 
 class Font95
@@ -189,11 +212,11 @@ class Font95
 	}
 };
 
-constexpr Character Font95::CHARACTERS[Font95::CHARACTERS_LENGTH]; // C++ weird corners (tldr: link problems)
+constexpr Character Font95::CHARACTERS[Font95::CHARACTERS_LENGTH]; // C++ weird corners
 constexpr uint16_t Font95::DATA[Font95::DATA_LENGTH];              // Ditto
 
 
-class Citrink
+class PaletteCitrink
 {
 	// Citrink Palette
 	// https://lospec.com/palette-list/citrink
@@ -212,10 +235,10 @@ class Citrink
 	}
 };
 
-constexpr Colour Citrink::COLOURS[Citrink::LENGTH];
+constexpr Colour PaletteCitrink::COLOURS[PaletteCitrink::LENGTH];
 
 
-class Slso8
+class PaletteSlso8
 {
 	// SLSO8 Palette
 	// https://lospec.com/palette-list/slso8
@@ -234,10 +257,10 @@ class Slso8
 	}
 };
 
-constexpr Colour Slso8::COLOURS[Slso8::LENGTH];
+constexpr Colour PaletteSlso8::COLOURS[PaletteSlso8::LENGTH];
 
 
-class Sunraze
+class PaletteSunraze
 {
 	// Sunraze Palette
 	// https://lospec.com/palette-list/sunraze
@@ -258,107 +281,10 @@ class Sunraze
 	}
 };
 
-constexpr Colour Sunraze::COLOURS[Sunraze::LENGTH];
+constexpr Colour PaletteSunraze::COLOURS[PaletteSunraze::LENGTH];
 
 
-#include <limits.h>
-
-#include "matsu.hpp"
-
-#include "thirdparty/cargs/include/cargs.h"
-#include "thirdparty/lodepng/lodepng.h"
-
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wold-style-cast"
-#pragma clang diagnostic ignored "-Wsign-conversion"
-#pragma clang diagnostic ignored "-Wimplicit-int-conversion"
-#pragma clang diagnostic ignored "-Wimplicit-int-float-conversion"
-
-#include "thirdparty/dr_libs/dr_wav.h"
-#pragma clang diagnostic pop
-
-#else
-#include "thirdparty/dr_libs/dr_wav.h"
-#endif
-
-
-static const char* NAME = "Matsu analyser";
-static const int VERSION_MAX = 0;
-static const int VERSION_MIN = 1;
-
-
-static int ExportIndexedImage(const Palette* palette, const uint8_t* data, size_t width, size_t height,
-                              const char* filename)
-{
-	LodePNGState png;
-	unsigned char* encoded_blob = nullptr;
-	FILE* fp = nullptr;
-
-	if (palette->length > (UINT8_MAX + 1) || width > UINT_MAX || height > UINT_MAX)
-		return 1;
-
-	// Initialize Png encoder
-	lodepng_state_init(&png);               // Doesn't fail
-	lodepng_color_mode_init(&png.info_raw); // Ditto
-
-	png.info_raw.colortype = LCT_PALETTE;
-	png.info_raw.bitdepth = 8;
-
-	for (size_t i = 0; i < palette->length; i += 1)
-	{
-		if (lodepng_palette_add(&png.info_raw,         //
-		                        palette->colours[i].r, //
-		                        palette->colours[i].g, //
-		                        palette->colours[i].b, //
-		                        palette->colours[i].a) != 0)
-		{
-			fprintf(stderr, "LodePng error, palette_add().\n");
-			goto return_failure;
-		}
-	}
-
-	// Encode
-	size_t encoded_blob_size;
-	{
-		const unsigned ret = lodepng_encode(&encoded_blob, &encoded_blob_size, data, static_cast<unsigned>(width),
-		                                    static_cast<unsigned>(height), &png);
-
-		if (ret != 0)
-		{
-			fprintf(stderr, "LodePng error, encode().\n");
-			fprintf(stderr, "\"%s\".\n", lodepng_error_text(ret));
-			goto return_failure;
-		}
-	}
-
-	// Write to file
-	if ((fp = fopen(filename, "wb")) == nullptr)
-	{
-		fprintf(stderr, "File output error (at opening a file).\n");
-		goto return_failure;
-	}
-
-	if (fwrite(encoded_blob, sizeof(uint8_t), encoded_blob_size, fp) != encoded_blob_size)
-	{
-		fprintf(stderr, "File output error (at writing).\n");
-		goto return_failure;
-	}
-
-	// Bye!
-	fclose(fp);
-	free(encoded_blob);
-	lodepng_state_cleanup(&png);
-	return 0;
-
-return_failure:
-	if (fp != nullptr)
-		fclose(fp);
-	if (encoded_blob != nullptr)
-		free(encoded_blob);
-	lodepng_state_cleanup(&png);
-	return 1;
-}
+// ################
 
 
 struct Framebuffer
@@ -366,7 +292,7 @@ struct Framebuffer
 	size_t width;
 	size_t height;
 	size_t stride;
-	uint8_t buffer[];
+	uint8_t* buffer;
 };
 
 
@@ -379,6 +305,7 @@ static Framebuffer* FramebufferCreate(size_t width, size_t height)
 	framebuffer->width = width;
 	framebuffer->height = height;
 	framebuffer->stride = width;
+	framebuffer->buffer = reinterpret_cast<uint8_t*>(framebuffer + 1);
 	memset(framebuffer->buffer, 0, sizeof(uint8_t) * width * height);
 
 	return framebuffer;
@@ -404,7 +331,7 @@ static void DrawCharacterInternal(size_t ch_width, size_t ch_height, size_t ch_d
 
 	for (size_t row = 0; row < ch_height; row += 1)
 	{
-		uint16_t acc = font_data[ch_data_index + row];
+		acc = font_data[ch_data_index + row];
 
 		for (size_t col = 0; col < ch_width; col += 1)
 		{
@@ -498,16 +425,22 @@ static void DrawSpectrumLine(const float* data, size_t data_length, uint8_t colo
 		size_t data_x;
 		{
 			// Plain linear with integers
-			// data_x = (col * data_length) / (width * 2);
+			if (0)
+			{
+				data_x = (col * data_length) / (width * 2);
+			}
 
 			// Fancy non linear axis
-			const float data_xf = powf(static_cast<float>(col) / static_cast<float>(width), linearity);
-			data_x = static_cast<size_t>((data_xf * static_cast<float>(data_length)) / 2.0f);
+			else
+			{
+				const float data_xf = powf(static_cast<float>(col) / static_cast<float>(width), linearity);
+				data_x = static_cast<size_t>((data_xf * static_cast<float>(data_length)) / 2.0f);
+			}
 		}
 
 		// Map sample to colours index
 		const float index_mul = static_cast<float>(colour_index_max) - static_cast<float>(colour_index_min) + 1.0f;
-		const float colour = matsu::ExponentialEasing(data[data_x], exposure) * index_mul;
+		const float colour = static_cast<float>(matsu::ExponentialEasing(data[data_x], exposure)) * index_mul;
 
 		// Draw!
 		out[col] = colour_index_min + matsu::Min(static_cast<uint8_t>(floorf(colour)), colour_index_max);
@@ -515,135 +448,80 @@ static void DrawSpectrumLine(const float* data, size_t data_length, uint8_t colo
 }
 
 
-struct Settings
+static int ExportIndexedImage(const Palette* palette, const uint8_t* data, size_t width, size_t height,
+                              const char* filename)
 {
-	const char* input;
-	const char* input2;
-	const char* output;
+	LodePNGState png;
+	unsigned char* encoded_blob = nullptr;
+	FILE* fp = nullptr;
 
-	size_t window_length;
-	float linearity;
-	float scale;
-	float exposure;
+	if (palette->length > (UINT8_MAX + 1) || width > UINT_MAX || height > UINT_MAX)
+		return 1;
 
-	int frequency;
-	size_t analysed_windows;
-	float difference;
-};
+	// Initialize Png encoder
+	lodepng_state_init(&png);               // Doesn't fail
+	lodepng_color_mode_init(&png.info_raw); // Ditto
 
+	png.info_raw.colortype = LCT_PALETTE;
+	png.info_raw.bitdepth = 8;
 
-static void DrawChrome(const Settings* s, const Font* font, const Palette* palette, Framebuffer* framebuffer)
-{
-	constexpr size_t BUFFER_LENGTH = 256; // May overflow on Windows
-
-	const size_t padding_x = 10;
-	const size_t padding_y = 10;
-
-	const size_t text_colour = palette->length - 1;
-	const size_t text_colour2 = palette->length / 2 + 1;
-
-	char buffer[BUFFER_LENGTH];
-
-	// Title
-	size_t title_len;
-	snprintf(buffer, BUFFER_LENGTH, "%s v%i.%i", NAME, VERSION_MAX, VERSION_MIN);
-	title_len = DrawText(font, TextStyle::Bold, buffer, text_colour, padding_x, padding_y, framebuffer);
-
-	const char* tool_name = (s->input2 == nullptr) ? "Spectrum plot tool" : "Difference tool";
-	title_len = matsu::Max(title_len, DrawText(font, TextStyle::Normal, tool_name, text_colour, padding_x,
-	                                           padding_y + font->line_height, framebuffer));
-
-	// Information
-	if (s->input2 == nullptr)
+	for (size_t i = 0; i < palette->length; i += 1)
 	{
-		snprintf(buffer, BUFFER_LENGTH,
-		         "\t|\tInput: \"%s\", %i Hz\t|\tWindow length: %zu, Linearity: %.2f, Scale: %.2fx, Exposure: % "
-		         ".2fx\t|\tAnalysed %zu windows",
-		         s->input, s->frequency, s->window_length, s->linearity, s->scale, s->exposure, s->analysed_windows);
-		DrawText(font, TextStyle::Normal, buffer, text_colour, title_len, padding_y + font->line_height / 2,
-		         framebuffer);
-	}
-	else
-	{
-		snprintf(buffer, BUFFER_LENGTH,
-		         "\t|\tInputs: \"%s\", \"%s\", %i Hz\t|\tWindow length: %zu, Linearity: %.2f, Scale: %.2fx, Exposure: "
-		         "% .2fx\t|\tAnalysed %zu windows, Difference: %.2f",
-		         s->input, s->input2, s->frequency, s->window_length, s->linearity, s->scale, s->exposure,
-		         s->analysed_windows, s->difference);
-		DrawText(font, TextStyle::Normal, buffer, text_colour, title_len, padding_y + font->line_height / 2,
-		         framebuffer);
+		if (lodepng_palette_add(&png.info_raw,         //
+		                        palette->colours[i].r, //
+		                        palette->colours[i].g, //
+		                        palette->colours[i].b, //
+		                        palette->colours[i].a) != 0)
+		{
+			fprintf(stderr, "LodePng error, palette_add().\n");
+			goto return_failure;
+		}
 	}
 
-	// Ruler
-	for (size_t i = 0; i < 4; i += 1)
+	// Encode
+	size_t encoded_blob_size;
 	{
-		const float x = static_cast<float>(i) / static_cast<float>(4);
-		const float xp = powf(x, 1.0f / s->linearity);
+		const unsigned ret = lodepng_encode(&encoded_blob, &encoded_blob_size, data, static_cast<unsigned>(width),
+		                                    static_cast<unsigned>(height), &png);
 
-		const float label_frequency = (x * static_cast<float>(s->frequency)) / (1000.0f * 2.0f);
-		const size_t label_x = static_cast<size_t>(xp * static_cast<float>(framebuffer->width));
-		const size_t label_y = padding_y + font->line_height * 3 - font->line_height / 2;
-
-		snprintf(buffer, BUFFER_LENGTH, "| %0.1f MHz", label_frequency);
-		DrawText(font, TextStyle::Normal, buffer, text_colour2, label_x, label_y, framebuffer);
+		if (ret != 0)
+		{
+			fprintf(stderr, "LodePng error, encode().\n");
+			fprintf(stderr, "\"%s\".\n", lodepng_error_text(ret));
+			goto return_failure;
+		}
 	}
 
+	// Write to file
+	if ((fp = fopen(filename, "wb")) == nullptr)
 	{
-		snprintf(buffer, BUFFER_LENGTH, "%0.1f MHz |", static_cast<float>(s->frequency) / (1000.0f * 2.0f));
-
-		// const size_t text_length = TextLength(font, TextStyle::Normal, buffer);
-		const size_t text_length = 51; // TODO
-
-		DrawText(font, TextStyle::Normal, buffer, text_colour2, framebuffer->width - text_length,
-		         padding_y + font->line_height * 3 - font->line_height / 2, framebuffer);
+		fprintf(stderr, "File output error (at opening a file).\n");
+		goto return_failure;
 	}
+
+	if (fwrite(encoded_blob, sizeof(uint8_t), encoded_blob_size, fp) != encoded_blob_size)
+	{
+		fprintf(stderr, "File output error (at writing).\n");
+		goto return_failure;
+	}
+
+	// Bye!
+	fclose(fp);
+	free(encoded_blob);
+	lodepng_state_cleanup(&png);
+	return 0;
+
+return_failure:
+	if (fp != nullptr)
+		fclose(fp);
+	if (encoded_blob != nullptr)
+		free(encoded_blob);
+	lodepng_state_cleanup(&png);
+	return 1;
 }
 
 
-static struct cag_option s_cvars[] = {
-    {.identifier = 'i',
-     .access_letters = "i",
-     .access_name = "input",
-     .value_name = "FILENAME",
-     .description = "File to read"},
-
-    {.identifier = 'd',
-     .access_letters = "d",
-     .access_name = "difference",
-     .value_name = "FILENAME",
-     .description = "File to read, and calculate difference with"},
-
-    {.identifier = 'o',
-     .access_letters = "o",
-     .access_name = "output",
-     .value_name = "FILENAME",
-     .description = "File to write, optional"},
-
-    {.identifier = 'w',
-     .access_letters = "w",
-     .access_name = "window",
-     .value_name = "NUMBER",
-     .description = "Window length (512, 1024, 2048 or 4096, default: 2048)"},
-
-    {.identifier = 'l',
-     .access_letters = "l",
-     .access_name = "linearity",
-     .value_name = "NUMBER",
-     .description = "X axis linearity (1: linear, >1: exponential, default: 2)"},
-
-    {.identifier = 's',
-     .access_letters = "s",
-     .access_name = "scale",
-     .value_name = "NUMBER",
-     .description = "Y axis scale (default: 1)"},
-
-    {.identifier = 'e',
-     .access_letters = "e",
-     .access_name = "exposure",
-     .value_name = "NUMBER",
-     .description = "Exposure (default: 8)"},
-
-    {.identifier = 'h', .access_letters = "h", .access_name = "help", .description = "Shows the command help"}};
+// ################
 
 
 static int LoadAudio(const char* filename, bool* out_initialzed, drwav* out_wav)
@@ -676,93 +554,164 @@ static int LoadAudio(const char* filename, bool* out_initialzed, drwav* out_wav)
 }
 
 
-int main(int argc, char* argv[])
+// ################
+
+
+static const char* NAME = "Matsu analyser";
+static const int VERSION_MAX = 0;
+static const int VERSION_MIN = 1;
+
+
+struct Settings
+{
+	std::string input1;
+	std::string input2;
+	std::string output;
+
+	int window_length;
+	float linearity;
+	float scale;
+	float exposure;
+};
+
+
+static void DrawChrome(unsigned frequency, const Settings* s, const Font* font, const Palette* palette,
+                       const matsu::Analyser::Output* analysis, Framebuffer* framebuffer)
+{
+	constexpr size_t BUFFER_LENGTH = 256; // May overflow on Windows
+
+	const size_t padding_x = 10;
+	const size_t padding_y = 10;
+
+	const auto text_colour = static_cast<uint8_t>(palette->length - 1);
+	const auto text_colour2 = static_cast<uint8_t>(palette->length / 2 + 1);
+
+	char buffer[BUFFER_LENGTH];
+
+	// Title
+	size_t title_len;
+	snprintf(buffer, BUFFER_LENGTH, "%s v%i.%i", NAME, VERSION_MAX, VERSION_MIN);
+	title_len = DrawText(font, TextStyle::Bold, buffer, text_colour, padding_x, padding_y, framebuffer);
+
+	const char* tool_name = (s->input2 == "") ? "Spectrum plot tool" : "Difference tool";
+	title_len = matsu::Max(title_len, DrawText(font, TextStyle::Normal, tool_name, text_colour, padding_x,
+	                                           padding_y + font->line_height, framebuffer));
+
+	// Information
+	if (s->input2 == "")
+	{
+		snprintf(buffer, BUFFER_LENGTH,
+		         "\t|\tInput: \"%s\", %u Hz\t|\tWindow length: %i, Linearity: %.2f, Scale: %.2fx, Exposure: "
+		         "%.2fx\t|\tAnalysed %zu windows",
+		         s->input1.c_str(), frequency, s->window_length, s->linearity, s->scale, s->exposure,
+		         analysis->windows);
+
+		DrawText(font, TextStyle::Normal, buffer, text_colour, title_len, padding_y + font->line_height / 2,
+		         framebuffer);
+	}
+	else
+	{
+		snprintf(buffer, BUFFER_LENGTH,
+		         "\t|\tInputs: \"%s\", \"%s\", %u Hz\t|\tWindow length: %i, Linearity: %.2f, Scale: %.2fx, Exposure: "
+		         "%.2fx\t|\tAnalysed %zu windows, Difference: %.2f",
+		         s->input1.c_str(), s->input2.c_str(), frequency, s->window_length, s->linearity, s->scale, s->exposure,
+		         analysis->windows, analysis->difference);
+
+		DrawText(font, TextStyle::Normal, buffer, text_colour, title_len, padding_y + font->line_height / 2,
+		         framebuffer);
+	}
+
+	// Ruler
+	for (size_t i = 0; i < 4; i += 1)
+	{
+		const float x = static_cast<float>(i) / static_cast<float>(4);
+		const float xp = powf(x, 1.0f / s->linearity);
+
+		const float label_frequency = (x * static_cast<float>(frequency)) / (1000.0f * 2.0f);
+		const size_t label_x = static_cast<size_t>(xp * static_cast<float>(framebuffer->width));
+		const size_t label_y = padding_y + font->line_height * 3 - font->line_height / 2;
+
+		snprintf(buffer, BUFFER_LENGTH, "| %0.1f MHz", label_frequency);
+		DrawText(font, TextStyle::Normal, buffer, text_colour2, label_x, label_y, framebuffer);
+	}
+
+	{
+		snprintf(buffer, BUFFER_LENGTH, "%0.1f MHz |", static_cast<float>(frequency) / (1000.0f * 2.0f));
+
+		// const size_t text_length = TextLength(font, TextStyle::Normal, buffer);
+		const size_t text_length = 51; // TODO
+
+		DrawText(font, TextStyle::Normal, buffer, text_colour2, framebuffer->width - text_length,
+		         padding_y + font->line_height * 3 - font->line_height / 2, framebuffer);
+	}
+}
+
+
+static Settings ReadSettings(int argc, const char* argv[])
+{
+	Settings ret;
+
+	// Get arguments
+	argh::parser cmd(argc, argv, argh::parser::Mode::PREFER_PARAM_FOR_UNREG_OPTION);
+
+	cmd({"-i", "-input"}, "") >> ret.input1;
+	cmd({"-d", "-difference"}, "") >> ret.input2;
+	cmd({"-o", "-output"}, "") >> ret.output;
+
+	cmd({"-w", "-window"}, 1024) >> ret.window_length;
+	cmd({"-l", "-linearity"}, 2.0f) >> ret.linearity;
+	cmd({"-s", "-scale"}, 1.0f) >> ret.scale;
+	cmd({"-e", "-exposure"}, 8.0f) >> ret.exposure;
+
+	// Sanitize them
+	const int valid_windows[5] = {512, 1024, 2048, 4096, 8192};
+	int best_distance = INT_MAX;
+	int best_window = 0;
+
+	for (int i = 0; i < 5; i += 1)
+	{
+		const int distance = abs(ret.window_length - valid_windows[i]);
+		if (distance < best_distance)
+		{
+			best_distance = distance;
+			best_window = i;
+		}
+	}
+
+	ret.window_length = valid_windows[best_window];
+	ret.linearity = matsu::Max(ret.linearity, 1.0f);
+	ret.scale = matsu::Clamp(ret.scale, 1.0f / 4.0f, 8.0f);
+	ret.exposure = matsu::Max(ret.exposure, 1.0f);
+
+	// Done!
+	return ret;
+}
+
+
+int main(int argc, const char* argv[])
 {
 	const Font font = Font95::ToGenericFont();
-	Palette palette;
-
-	Settings s;
-
-	drwav wav;
-	bool wav_initialized = false;
-	drwav wav2;
-	bool wav2_initialized = false;
+	const Settings settings = ReadSettings(argc, argv);
 
 	Framebuffer* framebuffer = nullptr;
 	constexpr size_t FRAMEBUFFER_WIDTH = 1024; // 90s style
 	constexpr size_t FRAMEBUFFER_HEIGHT = 768;
 
-	// Read settings
+	Palette palette;
+
+	drwav wav1;
+	bool wav1_initialized = false;
+	drwav wav2;
+	bool wav2_initialized = false;
+
+	// Some checks
+	printf("%s v%u.%u\n", NAME, VERSION_MAX, VERSION_MIN);
+
+	if (settings.input1 == "")
 	{
-		printf("%s v%u.%u\n", NAME, VERSION_MAX, VERSION_MIN);
-
-		cag_option_context cag;
-		cag_option_init(&cag, s_cvars, CAG_ARRAY_SIZE(s_cvars), argc, argv);
-
-		s.input = nullptr;
-		s.input2 = nullptr;
-		s.output = nullptr;
-		s.window_length = 2048;
-		s.linearity = 2.0f;
-		s.scale = 1.0f;
-		s.exposure = 8.0f;
-
-		while (cag_option_fetch(&cag))
-		{
-			switch (cag_option_get_identifier(&cag))
-			{
-			case 'i': s.input = cag_option_get_value(&cag); break;
-			case 'd': s.input2 = cag_option_get_value(&cag); break;
-			case 'o': s.output = cag_option_get_value(&cag); break;
-			case 'w': s.window_length = atol(cag_option_get_value(&cag)); break;
-			case 'l': s.linearity = atof(cag_option_get_value(&cag)); break;
-			case 's': s.scale = atof(cag_option_get_value(&cag)); break;
-			case 'e': s.exposure = atof(cag_option_get_value(&cag)); break;
-			case 'h':
-				printf("Usage: analyser [OPTION]...\n");
-				cag_option_print(s_cvars, CAG_ARRAY_SIZE(s_cvars), stdout);
-				return EXIT_SUCCESS;
-			case '?':
-				cag_option_print_error(&cag, stderr);
-				return EXIT_FAILURE;
-				break;
-			}
-		}
-
-		if (s.input == nullptr)
-		{
-			fprintf(stderr, "No input specified.\n");
-			return EXIT_FAILURE;
-		}
-
-		if (s.window_length != 512 && s.window_length != 1024 && s.window_length != 2048 && s.window_length != 4096)
-		{
-			fprintf(stderr, "Invalid window length.\n");
-			return EXIT_FAILURE;
-		}
-
-		s.linearity = matsu::Max(s.linearity, 1.0f);
-		s.scale = matsu::Clamp(s.scale, 1.0f / 4.0f, 8.0f);
-		s.exposure = matsu::Max(s.exposure, 1.0f);
+		fprintf(stderr, "No input specified.\n");
+		goto return_failure;
 	}
-
-	// Load audio
-	if (s.input2 == nullptr)
-	{
-		if (LoadAudio(s.input, &wav_initialized, &wav) != 0)
-			goto return_failure;
-
-		palette = Citrink::ToGenericPalette();
-	}
-	else
-	{
-		if (LoadAudio(s.input, &wav_initialized, &wav) != 0 || LoadAudio(s.input2, &wav2_initialized, &wav2) != 0)
-			goto return_failure;
-
-		palette = Slso8::ToGenericPalette();
-	}
-
-	s.frequency = wav.sampleRate;
 
 	// Create framebuffer
 	if ((framebuffer = FramebufferCreate(FRAMEBUFFER_WIDTH, FRAMEBUFFER_HEIGHT)) == nullptr)
@@ -771,20 +720,46 @@ int main(int argc, char* argv[])
 		goto return_failure;
 	}
 
-	// Analyse
-	{
-		const auto overlaps_no = static_cast<size_t>(20.0f * s.scale * (static_cast<float>(s.window_length) / 2048.0f));
-		matsu::Analyser analyser(s.window_length, overlaps_no);
+	// Load audio
+	unsigned frequency;
 
+	if (settings.input2 == "")
+	{
+		if (LoadAudio(settings.input1.c_str(), &wav1_initialized, &wav1) != 0)
+			goto return_failure;
+
+		palette = PaletteCitrink::ToGenericPalette();
+		frequency = wav1.sampleRate;
+	}
+	else
+	{
+		if (LoadAudio(settings.input1.c_str(), &wav1_initialized, &wav1) != 0 ||
+		    LoadAudio(settings.input2.c_str(), &wav2_initialized, &wav2) != 0)
+			goto return_failure;
+
+		palette = PaletteSlso8::ToGenericPalette();
+		frequency = wav1.sampleRate;
+
+		if (wav1.sampleRate != wav2.sampleRate)
+		{
+			fprintf(stderr, "Audio files with different frequencies.\n");
+			goto return_failure;
+		}
+	}
+
+	// Analyse
+	matsu::Analyser::Output analysis;
+	{
+		// Set callbacks
 		const auto read_callback = [&](size_t to_read_length, float* out) -> size_t
 		{
 			return static_cast<size_t>( //
-			    drwav_read_pcm_frames_f32(&wav, static_cast<drwav_uint64>(to_read_length), out));
+			    drwav_read_pcm_frames_f32(&wav1, static_cast<drwav_uint64>(to_read_length), out));
 		};
 
 		const auto read_callback2 = [&](size_t to_read_length, float* out) -> size_t
 		{
-			if (s.input2 == nullptr)
+			if (settings.input2 == "")
 				return 0;
 
 			return static_cast<size_t>( //
@@ -794,15 +769,18 @@ int main(int argc, char* argv[])
 		const auto draw_callback = [&](size_t analysed_windows, size_t window_length, const float* data)
 		{
 			if (analysed_windows < framebuffer->height - 57) // TODO
-				DrawSpectrumLine(data, window_length, 0, static_cast<uint8_t>(palette.length - 1), s.exposure,
-				                 s.linearity, 0, 57 + analysed_windows, framebuffer->width, framebuffer);
+				DrawSpectrumLine(data, window_length, 0, static_cast<uint8_t>(palette.length - 1), settings.exposure,
+				                 settings.linearity, 0, 57 + analysed_windows, framebuffer->width, framebuffer);
 		};
 
-		printf(" - Analysing...\n");
+		// Actual analysis
+		const auto overlaps_no = static_cast<size_t>(20.0f * settings.scale *
+		                                             (static_cast<float>(settings.window_length) / 2048.0f)); // TODO
 
-		const auto analysis = analyser.Analyse(read_callback, read_callback2, draw_callback);
-		s.analysed_windows = analysis.windows;
-		s.difference = analysis.difference;
+		matsu::Analyser analyser(static_cast<size_t>(settings.window_length), overlaps_no);
+
+		printf(" - Analysing...\n");
+		analysis = analyser.Analyse(read_callback, read_callback2, draw_callback);
 
 		printf("    - Overlaps: %zu\n", overlaps_no);
 		printf("    - Analysed %zu windows\n", analysis.windows);
@@ -810,13 +788,14 @@ int main(int argc, char* argv[])
 	}
 
 	// Draw chrome
-	DrawChrome(&s, &font, &palette, framebuffer);
+	DrawChrome(frequency, &settings, &font, &palette, &analysis, framebuffer);
 
 	// Save to file
-	if (s.output != nullptr)
+	if (settings.output != "")
 	{
-		printf(" - Saving \"%s\"...\n", s.output);
-		if (ExportIndexedImage(&palette, framebuffer->buffer, framebuffer->width, framebuffer->height, s.output) != 0)
+		printf(" - Saving \"%s\"...\n", settings.output.c_str());
+		if (ExportIndexedImage(&palette, framebuffer->buffer, framebuffer->width, framebuffer->height,
+		                       settings.output.c_str()) != 0)
 			goto return_failure;
 	}
 	else
@@ -825,20 +804,20 @@ int main(int argc, char* argv[])
 	}
 
 	// Bye!
-	drwav_uninit(&wav);
+	FramebufferDelete(framebuffer);
+	drwav_uninit(&wav1);
 	if (wav2_initialized == true)
 		drwav_uninit(&wav2);
-	FramebufferDelete(framebuffer);
 
 	printf(" - Bye!\n");
 	return EXIT_SUCCESS;
 
 return_failure:
-	if (wav_initialized == true)
-		drwav_uninit(&wav);
-	if (wav2_initialized == true)
-		drwav_uninit(&wav2);
 	if (framebuffer != nullptr)
 		FramebufferDelete(framebuffer);
+	if (wav1_initialized == true)
+		drwav_uninit(&wav1);
+	if (wav2_initialized == true)
+		drwav_uninit(&wav2);
 	return EXIT_FAILURE;
 }
