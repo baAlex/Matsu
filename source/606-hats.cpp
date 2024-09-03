@@ -19,13 +19,28 @@ using namespace matsu;
 class SharedSquares
 {
   public:
-	SharedSquares(double sampling_frequency)
-	    : m_osc1(sampling_frequency, 619.0 * 1.38), //
-	      m_osc2(sampling_frequency, 437.0 * 1.12), //
-	      m_osc3(sampling_frequency, 415.0 * 1.67), //
-	      m_osc4(sampling_frequency, 365.0 * 1.16), //
-	      m_osc5(sampling_frequency, 306.0 * 1.28), //
-	      m_osc6(sampling_frequency, 245.0 * 1.43)
+	struct Settings
+	{
+		double frequency[6];
+
+		static Settings Default()
+		{
+			return {{684.35,       //
+			         511.97,       //
+			         305.88,       //
+			         271.14,       //
+			         210.10 * 2.0, //
+			         201.23}};
+		}
+	};
+
+	SharedSquares(double sampling_frequency, Settings settings)
+	    : m_osc1(sampling_frequency, settings.frequency[0]), //
+	      m_osc2(sampling_frequency, settings.frequency[1]), //
+	      m_osc3(sampling_frequency, settings.frequency[2]), //
+	      m_osc4(sampling_frequency, settings.frequency[3]), //
+	      m_osc5(sampling_frequency, settings.frequency[4]), //
+	      m_osc6(sampling_frequency, settings.frequency[5])
 	{
 	}
 
@@ -50,7 +65,7 @@ class SharedBandpass
 {
   public:
 	SharedBandpass(double sampling_frequency)
-	    : m_filter1(sampling_frequency, FilterType::Highpass, 6900.0, 3.3), //
+	    : m_filter1(sampling_frequency, FilterType::Highpass, 6900.0, 3.0), //
 	      m_filter2(sampling_frequency, FilterType::Lowpass, 7800.0),       //
 	      m_filter3(sampling_frequency, FilterType::Lowpass, 7950.0),       //
 	      m_filter4(sampling_frequency, FilterType::Lowpass, 10000.0)
@@ -88,32 +103,34 @@ class Hat606
 		double distortion_symmetry;
 		double noise_gain;
 
+		SharedSquares::Settings shared_squares;
+
 		static Settings DefaultHatOpen()
 		{
-			return {
-			    1500.0, // Long length
-			    1.0,    // Long gain
-			    500.0,  // Short length
-			    0.8,    // Short gain
+			return {1500.0, // Long length
+			        1.0,    // Long gain
+			        500.0,  // Short length
+			        0.8,    // Short gain
 
-			    6.0,   // Distortion
-			    0.125, // Distortion symmetry
-			    0.02   // Noise gain
-			};
+			        8.0,   // Distortion
+			        0.125, // Distortion symmetry
+			        0.04,  // Noise gain
+
+			        SharedSquares::Settings::Default()};
 		}
 
 		static Settings DefaultHatClosed()
 		{
-			return {
-			    0.0,   // Long length
-			    0.0,   // Long gain
-			    150.0, // Short length
-			    1.0,   // Short gain
+			return {0.0,   // Long length
+			        0.0,   // Long gain
+			        150.0, // Short length
+			        1.0,   // Short gain
 
-			    6.0,   // Distortion
-			    0.125, // Distortion symmetry
-			    0.02   // Noise gain
-			};
+			        8.0,   // Distortion
+			        0.125, // Distortion symmetry
+			        0.02,  // Noise gain
+
+			        SharedSquares::Settings::Default()};
 		}
 	};
 
@@ -125,11 +142,11 @@ class Hat606
 		                                 settings.short_length, 0.0, 9.0);
 
 		auto noise = NoiseGenerator();
-		auto squares = SharedSquares(sampling_frequency);
+		auto squares = SharedSquares(sampling_frequency, settings.shared_squares);
 		auto bandpass = SharedBandpass(sampling_frequency);
 
 		auto hp = TwoPolesFilter(sampling_frequency, FilterType::Highpass, 8400.0, 0.75);
-		auto lp = TwoPolesFilter(sampling_frequency, FilterType::Lowpass, 14000.0, 0.25);
+		auto lp = TwoPolesFilter(sampling_frequency, FilterType::Lowpass, 16000.0, 0.25);
 		const double lp_wet = 0.75; // Original one seems to die lovely at 22 MHz, it can
 		                            // be better filters, a nyquist sampling thing, or both.
 		                            // This wet/dry mix can get us somewhat there. A proper
@@ -211,20 +228,22 @@ class Cymbal606
 		double distortion_symmetry;
 		double noise_gain;
 
+		SharedSquares::Settings shared_squares;
+
 		static Settings Default()
 		{
-			return {
-			    1000.0, // Long length
-			    0.17,   // Long gain
-			    200.0,  // Short length
-			    0.8,    // Short gain
-			    1600.0, // Companion length
-			    0.17,   // Companion gain
+			return {1000.0, // Long length
+			        0.17,   // Long gain
+			        200.0,  // Short length
+			        0.8,    // Short gain
+			        1600.0, // Companion length
+			        0.17,   // Companion gain
 
-			    6.0,   // Distortion
-			    0.125, // Distortion symmetry
-			    0.02   // Noise gain
-			};
+			        8.0,   // Distortion
+			        0.125, // Distortion symmetry
+			        0.02,  // Noise gain
+
+			        SharedSquares::Settings::Default()};
 		}
 	};
 
@@ -238,7 +257,7 @@ class Cymbal606
 		                                     settings.companion_length, 0.0, 2.5);
 
 		auto noise = NoiseGenerator();
-		auto squares = SharedSquares(sampling_frequency);
+		auto squares = SharedSquares(sampling_frequency, settings.shared_squares);
 		auto bandpass = SharedBandpass(sampling_frequency);
 
 		auto bp1 = TwoPolesFilter(sampling_frequency, FilterType::Lowpass, 3500.0, 4.0);
@@ -246,7 +265,7 @@ class Cymbal606
 		auto bp3 = TwoPolesFilter(sampling_frequency, FilterType::Lowpass, 3500.0, 4.0);
 
 		auto hp = TwoPolesFilter(sampling_frequency, FilterType::Highpass, 8400.0, 0.75);
-		auto lp = TwoPolesFilter(sampling_frequency, FilterType::Lowpass, 14000.0, 0.25);
+		auto lp = TwoPolesFilter(sampling_frequency, FilterType::Lowpass, 16000.0, 0.25);
 		const double lp_wet = 0.75; // Original one seems to die lovely at 22 MHz, it can
 		                            // be better filters, a nyquist sampling thing, or both.
 		                            // This wet/dry mix can get us somewhat there. A proper

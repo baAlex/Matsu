@@ -21,7 +21,7 @@ set_cc105=75
 label_cc106=Cymbal Vol
 set_cc106=60
 
-<group> group=1 loop_mode=one_shot
+<group> loop_mode=one_shot
 <region> sample=606-kick.flac     key=B0 amplitude_oncc100=100
 <region> sample=606-kick.flac     key=C1 amplitude_oncc100=100
 <region> sample=606-snare.flac    key=D1 amplitude_oncc101=100
@@ -33,8 +33,9 @@ set_cc106=60
 <region> sample=606-tom-high.flac key=C2 amplitude_oncc105=100
 <region> sample=606-tom-high.flac key=D2 amplitude_oncc105=100
 <region> sample=606-cymbal.flac   key=Db2 amplitude_oncc106=100
+<region> sample=606-cymbal.flac   key=Eb2 amplitude_oncc106=100
 
-<group> group=2 off_by=2 loop_mode=one_shot off_mode=fast ampeg_release=0
+<group> polyphony=1 loop_mode=one_shot
 <region> sample=606-hat-closed.flac key=Gb1 amplitude_oncc102=100
 <region> sample=606-hat-closed.flac key=Ab1 amplitude_oncc102=100
 <region> sample=606-hat-open.flac   key=Bb1 amplitude_oncc103=100
