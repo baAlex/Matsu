@@ -572,7 +572,43 @@ struct Settings
 	float linearity;
 	float scale;
 	float exposure;
+	bool mean;
 };
+
+
+static void DrawMean(double* data, size_t data_length, float linearity, Framebuffer* framebuffer)
+{
+	uint8_t* out = framebuffer->buffer;
+
+	// Normalize
+	// TODO, not a lovely place to do this
+	{
+		data[0] = 0.0;
+
+		double max = 0.0;
+		for (size_t i = 0; i < data_length / 2; i += 1)
+			max = matsu::Max(abs(data[i]), max);
+
+		max = 1.0 / max;
+		for (size_t i = 0; i < data_length / 2; i += 1)
+			data[i] = pow(abs(data[i] * max), 1.0 / 2.0); // TODO, hardcoded 'exposure'
+	}
+
+	// Draw
+	for (size_t col = 0; col < framebuffer->width; col += 1)
+	{
+		const float data_xf = powf(static_cast<float>(col) / static_cast<float>(framebuffer->width), linearity);
+		size_t data_x = static_cast<size_t>((data_xf * static_cast<float>(data_length)) / 2.0f);
+
+		const size_t draw_from = static_cast<size_t>(767.0 - data[data_x] * 300.0);
+		const size_t dark_from = static_cast<size_t>(767.0 - /* data[data_x] */ 300.0 - 30.0);
+
+		for (size_t y = dark_from; y < draw_from; y += 1)
+			out[col + y * framebuffer->stride] /= 2;
+		for (size_t y = draw_from; y < framebuffer->height; y += 1)
+			out[col + y * framebuffer->stride] = 5;
+	}
+}
 
 
 static void DrawChrome(unsigned frequency, const Settings* s, const Font* font, const Palette* palette,
@@ -662,6 +698,7 @@ static Settings ReadSettings(int argc, const char* argv[])
 	cmd({"-l", "-linearity"}, 2.0f) >> ret.linearity;
 	cmd({"-s", "-scale"}, 1.0f) >> ret.scale;
 	cmd({"-e", "-exposure"}, 8.0f) >> ret.exposure;
+	cmd({"-m", "-mean"}, false) >> ret.mean;
 
 	// Sanitize them
 	const int valid_windows[5] = {512, 1024, 2048, 4096, 8192};
@@ -704,6 +741,8 @@ int main(int argc, const char* argv[])
 	drwav wav2;
 	bool wav2_initialized = false;
 
+	double* mean = nullptr;
+
 	// Some checks
 	printf("%s v%u.%u\n", NAME, VERSION_MAX, VERSION_MIN);
 
@@ -718,6 +757,20 @@ int main(int argc, const char* argv[])
 	{
 		fprintf(stderr, "No enough memory (at framebuffer creation).\n");
 		goto return_failure;
+	}
+
+	// Mean buffer
+	if (settings.mean == true)
+	{
+		const size_t size = sizeof(double) * static_cast<size_t>(settings.window_length);
+
+		if ((mean = reinterpret_cast<double*>(malloc(size))) == nullptr)
+		{
+			fprintf(stderr, "No enough memory (at mean buffer creation).\n");
+			goto return_failure;
+		}
+
+		memset(mean, 0, size);
 	}
 
 	// Load audio
@@ -771,6 +824,12 @@ int main(int argc, const char* argv[])
 			if (analysed_windows < framebuffer->height - 57) // TODO
 				DrawSpectrumLine(data, window_length, 0, static_cast<uint8_t>(palette.length - 1), settings.exposure,
 				                 settings.linearity, 0, 57 + analysed_windows, framebuffer->width, framebuffer);
+
+			if (settings.mean == true)
+			{
+				for (size_t i = 0; i < window_length; i += 1)
+					mean[i] = static_cast<double>(mean[i] + data[i]) / 2.0;
+			}
 		};
 
 		// Actual analysis
@@ -787,8 +846,11 @@ int main(int argc, const char* argv[])
 		printf("    - Difference %.4f\n", analysis.difference);
 	}
 
-	// Draw chrome
+	// Final draws
 	DrawChrome(frequency, &settings, &font, &palette, &analysis, framebuffer);
+
+	if (settings.mean == true)
+		DrawMean(mean, static_cast<size_t>(settings.window_length), settings.linearity, framebuffer);
 
 	// Save to file
 	if (settings.output != "")
@@ -808,6 +870,7 @@ int main(int argc, const char* argv[])
 	drwav_uninit(&wav1);
 	if (wav2_initialized == true)
 		drwav_uninit(&wav2);
+	free(mean);
 
 	printf(" - Bye!\n");
 	return EXIT_SUCCESS;
@@ -819,5 +882,7 @@ return_failure:
 		drwav_uninit(&wav1);
 	if (wav2_initialized == true)
 		drwav_uninit(&wav2);
+	if (mean != nullptr)
+		free(mean);
 	return EXIT_FAILURE;
 }

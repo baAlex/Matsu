@@ -491,7 +491,8 @@ matsu::Analyser::Output matsu::Analyser::Analyse(std::function<size_t(size_t, fl
 		}
 
 		// Output
-		output_callback(ret.windows, m_window_length, m_window_a);
+		if (output_callback != nullptr)
+			output_callback(ret.windows, m_window_length, m_window_a);
 
 		// Scroll buffers
 		bool we_still_have_content = false;
