@@ -576,25 +576,10 @@ struct Settings
 };
 
 
-static void DrawMean(double* data, size_t data_length, float linearity, Framebuffer* framebuffer)
+static void DrawMean(const double* data, size_t data_length, float linearity, Framebuffer* framebuffer)
 {
 	uint8_t* out = framebuffer->buffer;
 
-	// Normalize
-	// TODO, not a lovely place to do this
-	{
-		data[0] = 0.0;
-
-		double max = 0.0;
-		for (size_t i = 0; i < data_length / 2; i += 1)
-			max = matsu::Max(abs(data[i]), max);
-
-		max = 1.0 / max;
-		for (size_t i = 0; i < data_length / 2; i += 1)
-			data[i] = pow(abs(data[i] * max), 1.0 / 2.0); // TODO, hardcoded 'exposure'
-	}
-
-	// Draw
 	for (size_t col = 0; col < framebuffer->width; col += 1)
 	{
 		const float data_xf = powf(static_cast<float>(col) / static_cast<float>(framebuffer->width), linearity);
@@ -742,6 +727,7 @@ int main(int argc, const char* argv[])
 	bool wav2_initialized = false;
 
 	double* mean = nullptr;
+	long mean_div = 0;
 
 	// Some checks
 	printf("%s v%u.%u\n", NAME, VERSION_MAX, VERSION_MIN);
@@ -827,8 +813,9 @@ int main(int argc, const char* argv[])
 
 			if (settings.mean == true)
 			{
+				mean_div += 1;
 				for (size_t i = 0; i < window_length; i += 1)
-					mean[i] = static_cast<double>(mean[i] + data[i]) / 2.0;
+					mean[i] = static_cast<double>(mean[i] + data[i]);
 			}
 		};
 
@@ -850,7 +837,25 @@ int main(int argc, const char* argv[])
 	DrawChrome(frequency, &settings, &font, &palette, &analysis, framebuffer);
 
 	if (settings.mean == true)
+	{
+		// Average
+		for (int i = 0; i < settings.window_length; i += 1)
+			mean[i] /= static_cast<double>(mean_div);
+
+		// Normalize
+		mean[0] = 0.0;
+
+		double max = 0.0;
+		for (int i = 0; i < settings.window_length / 2; i += 1)
+			max = matsu::Max(abs(mean[i]), max);
+
+		max = 1.0 / max;
+		for (int i = 0; i < settings.window_length / 2; i += 1)
+			mean[i] = pow(abs(mean[i] * max), 1.0 / 3.0); // TODO, hardcoded 'exposure'
+
+		// Draw
 		DrawMean(mean, static_cast<size_t>(settings.window_length), settings.linearity, framebuffer);
+	}
 
 	// Save to file
 	if (settings.output != "")
