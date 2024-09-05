@@ -33,14 +33,14 @@ class Snare606
 		static Settings Default()
 		{
 			return {
-			    150.0, // Oscillator length
+			    165.0, // Oscillator length
 			    0.7,   // Oscillator gain
-			    320.0, // Oscillator frequency
+			    350.0, // Oscillator frequency
 			    0.0,   // Oscillator feedback
-			    0.60,  // Oscillator sweep (320 * 0.60 = 192)
+			    0.60,  // Oscillator sweep (350 * 0.60 = 210)
 
-			    150.0, // Noise length
-			    0.9    // Noise gain
+			    165.0, // Noise length
+			    1.0    // Noise gain
 			};
 		}
 	};
@@ -51,12 +51,12 @@ class Snare606
 		auto envelope_noise = AdEnvelope(sampling_frequency, 2.0, settings.noise_length - 2.0, 0.0, 9.0);
 
 		auto oscillator = Oscillator(sampling_frequency, settings.osc_frequency, settings.osc_feedback,
-		                             settings.osc_length, settings.osc_sweep);
+		                             settings.osc_length, settings.osc_sweep, -16.0);
 		auto noise = NoiseGenerator();
 
-		auto bp_a = TwoPolesFilter(sampling_frequency, FilterType::Highpass, 2700.0, 0.75);
-		auto bp_b = TwoPolesFilter(sampling_frequency, FilterType::Lowpass, 16000.0, 0.5);
-		auto bp_c = OnePoleFilter(sampling_frequency, FilterType::Lowpass, 2700.0);
+		auto bp_a = TwoPolesFilter(sampling_frequency, FilterType::Highpass, 3000.0, 0.75);
+		auto bp_b = TwoPolesFilter(sampling_frequency, FilterType::Lowpass, 11000.0, 0.5);
+		auto bp_c = OnePoleFilter(sampling_frequency, FilterType::Lowpass, 3000.0);
 
 		const size_t samples = Max(envelope_oscillator.GetTotalSamples(), envelope_noise.GetTotalSamples());
 
