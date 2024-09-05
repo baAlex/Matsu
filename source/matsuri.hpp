@@ -10,15 +10,15 @@ This Source Code Form is "Incompatible With Secondary Licenses", as
 defined by the Mozilla Public License, v. 2.0.
 */
 
-#ifndef MATSU_HPP
-#define MATSU_HPP
+#ifndef MATSURI_HPP
+#define MATSURI_HPP
 
 #include <functional>
 #include <math.h>
 #include <stdint.h>
 #include <stdlib.h>
 
-namespace matsu
+namespace matsuri
 {
 
 // clang-format off
@@ -166,5 +166,5 @@ class Analyser
 	float* m_work_area;
 };
 
-} // namespace matsu
+} // namespace matsuri
 #endif

@@ -10,24 +10,24 @@ This Source Code Form is "Incompatible With Secondary Licenses", as
 defined by the Mozilla Public License, v. 2.0.
 */
 
-#include "matsu.hpp"
+#include "matsuri.hpp"
 
 
-using namespace matsu;
+using namespace matsuri;
 
 
-size_t matsu::MillisecondsToSamples(double sampling_frequency, double milliseconds)
+size_t matsuri::MillisecondsToSamples(double sampling_frequency, double milliseconds)
 {
 	return static_cast<size_t>((milliseconds * sampling_frequency) / 1000.0);
 }
 
-double matsu::SamplesToMilliseconds(double sampling_frequency, size_t samples)
+double matsuri::SamplesToMilliseconds(double sampling_frequency, size_t samples)
 {
 	return (static_cast<double>(samples) / sampling_frequency) * 1000.0;
 }
 
 
-uint64_t matsu::Random(uint64_t* state)
+uint64_t matsuri::Random(uint64_t* state)
 {
 	// https://en.wikipedia.org/wiki/Xorshift#xorshift*
 	uint64_t x = *state;
@@ -39,7 +39,7 @@ uint64_t matsu::Random(uint64_t* state)
 	return x * static_cast<uint64_t>(0x2545F4914F6CDD1D);
 }
 
-double matsu::RandomFloat(uint64_t* state)
+double matsuri::RandomFloat(uint64_t* state)
 {
 	// https://prng.di.unimi.it/
 
@@ -51,7 +51,7 @@ double matsu::RandomFloat(uint64_t* state)
 }
 
 
-double matsu::ExponentialEasing(double x, double e)
+double matsuri::ExponentialEasing(double x, double e)
 {
 	if (e == 0.0)
 		return x;
@@ -59,7 +59,7 @@ double matsu::ExponentialEasing(double x, double e)
 	return ((exp(e * fabs(x)) - 1.0) / (exp(e) - 1.0)) * Sign(x);
 }
 
-double matsu::Distortion(double x, double e, double asymmetry)
+double matsuri::Distortion(double x, double e, double asymmetry)
 {
 	if (e == 0.0)
 		return x;
@@ -71,8 +71,8 @@ double matsu::Distortion(double x, double e, double asymmetry)
 }
 
 
-matsu::AdEnvelope::AdEnvelope(double sampling_frequency, double attack_duration, double decay_duration,
-                              double attack_shape, double decay_shape)
+matsuri::AdEnvelope::AdEnvelope(double sampling_frequency, double attack_duration, double decay_duration,
+                                double attack_shape, double decay_shape)
 {
 	m_attack = static_cast<double>(MillisecondsToSamples(sampling_frequency, attack_duration));
 	m_decay = static_cast<double>(MillisecondsToSamples(sampling_frequency, decay_duration));
@@ -85,12 +85,12 @@ matsu::AdEnvelope::AdEnvelope(double sampling_frequency, double attack_duration,
 	m_x = 0;
 }
 
-size_t matsu::AdEnvelope::GetTotalSamples() const
+size_t matsuri::AdEnvelope::GetTotalSamples() const
 {
 	return static_cast<size_t>(ceil(m_attack + m_decay));
 }
 
-double matsu::AdEnvelope::Step()
+double matsuri::AdEnvelope::Step()
 {
 	const double dx = static_cast<double>(m_x);
 	m_x = m_x + 1;
@@ -104,19 +104,19 @@ double matsu::AdEnvelope::Step()
 }
 
 
-matsu::NoiseGenerator::NoiseGenerator(uint64_t seed)
+matsuri::NoiseGenerator::NoiseGenerator(uint64_t seed)
 {
 	m_state = Max(seed, static_cast<uint64_t>(1));
 }
 
-double matsu::NoiseGenerator::Step()
+double matsuri::NoiseGenerator::Step()
 {
 	return RandomFloat(&m_state) * 2.0 - 1.0;
 }
 
 
-matsu::Oscillator::Oscillator(double sampling_frequency, double frequency, double feedback_level, double sweep_duration,
-                              double sweep_multiply, double sweep_shape)
+matsuri::Oscillator::Oscillator(double sampling_frequency, double frequency, double feedback_level,
+                                double sweep_duration, double sweep_multiply, double sweep_shape)
 {
 	sampling_frequency = Max(sampling_frequency, 1.0);
 	frequency = Max(frequency, 1.0);
@@ -139,7 +139,7 @@ matsu::Oscillator::Oscillator(double sampling_frequency, double frequency, doubl
 	m_feedback_level = feedback_level / (M_PI / 2.0); // For a maximum 'feedback_level' of 1
 }
 
-double matsu::Oscillator::Step()
+double matsuri::Oscillator::Step()
 {
 	const double sweep = ExponentialEasing(m_sweep, m_sweep_shape);
 	const double phase_delta = Mix(m_phase_delta_a, m_phase_delta_b, sweep);
@@ -155,7 +155,7 @@ double matsu::Oscillator::Step()
 }
 
 
-matsu::SquareOscillator::SquareOscillator(double sampling_frequency, double frequency, double phase)
+matsuri::SquareOscillator::SquareOscillator(double sampling_frequency, double frequency, double phase)
 {
 	sampling_frequency = Max(sampling_frequency, 1.0);
 	frequency = Max(frequency, 1.0);
@@ -164,14 +164,14 @@ matsu::SquareOscillator::SquareOscillator(double sampling_frequency, double freq
 	m_phase_delta = (frequency / sampling_frequency) * (M_PI * 2.0);
 }
 
-double matsu::SquareOscillator::Step()
+double matsuri::SquareOscillator::Step()
 {
 	m_phase = fmod(m_phase + m_phase_delta, (M_PI * 2.0));
 	return (m_phase > M_PI) ? -1.0 : 1.0;
 }
 
 
-matsu::OnePoleFilter::OnePoleFilter(double sampling_frequency, FilterType type, double cutoff)
+matsuri::OnePoleFilter::OnePoleFilter(double sampling_frequency, FilterType type, double cutoff)
 {
 	sampling_frequency = Max(sampling_frequency, 1.0);
 	cutoff = Max(cutoff, 1.0);
@@ -181,7 +181,7 @@ matsu::OnePoleFilter::OnePoleFilter(double sampling_frequency, FilterType type, 
 	m_type = (type == FilterType::Lowpass) ? 0 : 1;
 }
 
-double matsu::OnePoleFilter::Step(double x)
+double matsuri::OnePoleFilter::Step(double x)
 {
 	m_s = m_s + (x - m_s) * m_c;
 	return (m_type == 0) ? (m_s) : (x - m_s);
@@ -197,7 +197,7 @@ static size_t A1 = Y1; // Simd rewrite easier
 static size_t B2 = X2;
 static size_t A2 = Y2;
 
-matsu::TwoPolesFilter::TwoPolesFilter(double sampling_frequency, FilterType type, double cutoff, double q)
+matsuri::TwoPolesFilter::TwoPolesFilter(double sampling_frequency, FilterType type, double cutoff, double q)
 {
 	sampling_frequency = Max(sampling_frequency, 1.0);
 	cutoff = Max(cutoff, 1.0);
@@ -256,7 +256,7 @@ matsu::TwoPolesFilter::TwoPolesFilter(double sampling_frequency, FilterType type
 	m_c[A2] = -m_c[A2];
 }
 
-double matsu::TwoPolesFilter::Step(double x)
+double matsuri::TwoPolesFilter::Step(double x)
 {
 	const double y = (m_c_b0 * x)                                //
 	                 + (m_c[B1] * m_s[X1]) + (m_c[B2] * m_s[X2]) // [a]
@@ -290,7 +290,7 @@ double matsu::TwoPolesFilter::Step(double x)
 #include "thirdparty/dr_libs/dr_wav.h"
 #endif
 
-void matsu::ExportAudioS24(const double* input, double sampling_frequency, size_t length, const char* filename)
+void matsuri::ExportAudioS24(const double* input, double sampling_frequency, size_t length, const char* filename)
 {
 	auto export_buffer = reinterpret_cast<uint8_t*>(malloc(sizeof(uint8_t) * 3 * length));
 	if (export_buffer == nullptr)
@@ -332,7 +332,7 @@ void matsu::ExportAudioS24(const double* input, double sampling_frequency, size_
 	free(export_buffer);
 }
 
-void matsu::ExportAudioF64(const double* input, double sampling_frequency, size_t length, const char* filename)
+void matsuri::ExportAudioF64(const double* input, double sampling_frequency, size_t length, const char* filename)
 {
 	drwav_data_format format;
 	format.container = drwav_container_riff;
@@ -354,7 +354,7 @@ void matsu::ExportAudioF64(const double* input, double sampling_frequency, size_
 #include "thirdparty/pffft/pffft.h"
 
 
-matsu::Analyser::Analyser(size_t window_length, size_t overlaps_no)
+matsuri::Analyser::Analyser(size_t window_length, size_t overlaps_no)
 {
 	m_window_length = window_length;
 	m_to_read_length = m_window_length / overlaps_no;
@@ -393,7 +393,7 @@ return_failure:
 	// TODO, return something, an exception maybe
 }
 
-matsu::Analyser::~Analyser()
+matsuri::Analyser::~Analyser()
 {
 	if (m_pffft != nullptr)
 		pffft_destroy_setup(reinterpret_cast<PFFFT_Setup*>(m_pffft));
@@ -409,11 +409,11 @@ matsu::Analyser::~Analyser()
 		pffft_aligned_free(m_work_area);
 }
 
-matsu::Analyser::Output matsu::Analyser::Analyse(std::function<size_t(size_t, float*)> input_callback,
-                                                 std::function<size_t(size_t, float*)> input_callback2,
-                                                 std::function<void(size_t, size_t, const float*)> output_callback)
+matsuri::Analyser::Output matsuri::Analyser::Analyse(std::function<size_t(size_t, float*)> input_callback,
+                                                     std::function<size_t(size_t, float*)> input_callback2,
+                                                     std::function<void(size_t, size_t, const float*)> output_callback)
 {
-	matsu::Analyser::Output ret = {};
+	matsuri::Analyser::Output ret = {};
 	long diff_sum = 0;
 	long diff_div = 0;
 

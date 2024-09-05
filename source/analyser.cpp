@@ -16,7 +16,7 @@ defined by the Mozilla Public License, v. 2.0.
 #include <stdlib.h>
 #include <string.h>
 
-#include "matsu.hpp"
+#include "matsuri.hpp"
 
 #include "thirdparty/argh/argh.h"
 #include "thirdparty/lodepng/lodepng.h"
@@ -440,10 +440,10 @@ static void DrawSpectrumLine(const float* data, size_t data_length, uint8_t colo
 
 		// Map sample to colours index
 		const float index_mul = static_cast<float>(colour_index_max) - static_cast<float>(colour_index_min) + 1.0f;
-		const float colour = static_cast<float>(matsu::ExponentialEasing(data[data_x], exposure)) * index_mul;
+		const float colour = static_cast<float>(matsuri::ExponentialEasing(data[data_x], exposure)) * index_mul;
 
 		// Draw!
-		out[col] = colour_index_min + matsu::Min(static_cast<uint8_t>(floorf(colour)), colour_index_max);
+		out[col] = colour_index_min + matsuri::Min(static_cast<uint8_t>(floorf(colour)), colour_index_max);
 	}
 }
 
@@ -557,7 +557,7 @@ static int LoadAudio(const char* filename, bool* out_initialzed, drwav* out_wav)
 // ################
 
 
-static const char* NAME = "Matsu analyser";
+static const char* NAME = "Matsuri analyser";
 static const int VERSION_MAX = 0;
 static const int VERSION_MIN = 1;
 
@@ -597,7 +597,7 @@ static void DrawMean(const double* data, size_t data_length, float linearity, Fr
 
 
 static void DrawChrome(unsigned frequency, const Settings* s, const Font* font, const Palette* palette,
-                       const matsu::Analyser::Output* analysis, Framebuffer* framebuffer)
+                       const matsuri::Analyser::Output* analysis, Framebuffer* framebuffer)
 {
 	constexpr size_t BUFFER_LENGTH = 256; // May overflow on Windows
 
@@ -615,8 +615,8 @@ static void DrawChrome(unsigned frequency, const Settings* s, const Font* font, 
 	title_len = DrawText(font, TextStyle::Bold, buffer, text_colour, padding_x, padding_y, framebuffer);
 
 	const char* tool_name = (s->input2 == "") ? "Spectrum plot tool" : "Difference tool";
-	title_len = matsu::Max(title_len, DrawText(font, TextStyle::Normal, tool_name, text_colour, padding_x,
-	                                           padding_y + font->line_height, framebuffer));
+	title_len = matsuri::Max(title_len, DrawText(font, TextStyle::Normal, tool_name, text_colour, padding_x,
+	                                             padding_y + font->line_height, framebuffer));
 
 	// Information
 	if (s->input2 == "")
@@ -701,9 +701,9 @@ static Settings ReadSettings(int argc, const char* argv[])
 	}
 
 	ret.window_length = valid_windows[best_window];
-	ret.linearity = matsu::Max(ret.linearity, 1.0f);
-	ret.scale = matsu::Clamp(ret.scale, 1.0f / 4.0f, 8.0f);
-	ret.exposure = matsu::Max(ret.exposure, 1.0f);
+	ret.linearity = matsuri::Max(ret.linearity, 1.0f);
+	ret.scale = matsuri::Clamp(ret.scale, 1.0f / 4.0f, 8.0f);
+	ret.exposure = matsuri::Max(ret.exposure, 1.0f);
 
 	// Done!
 	return ret;
@@ -787,7 +787,7 @@ int main(int argc, const char* argv[])
 	}
 
 	// Analyse
-	matsu::Analyser::Output analysis;
+	matsuri::Analyser::Output analysis;
 	{
 		// Set callbacks
 		const auto read_callback = [&](size_t to_read_length, float* out) -> size_t
@@ -823,7 +823,7 @@ int main(int argc, const char* argv[])
 		const auto overlaps_no = static_cast<size_t>(20.0f * settings.scale *
 		                                             (static_cast<float>(settings.window_length) / 2048.0f)); // TODO
 
-		matsu::Analyser analyser(static_cast<size_t>(settings.window_length), overlaps_no);
+		matsuri::Analyser analyser(static_cast<size_t>(settings.window_length), overlaps_no);
 
 		printf(" - Analysing...\n");
 		analysis = analyser.Analyse(read_callback, read_callback2, draw_callback);
@@ -847,7 +847,7 @@ int main(int argc, const char* argv[])
 
 		double max = 0.0;
 		for (int i = 0; i < settings.window_length / 2; i += 1)
-			max = matsu::Max(abs(mean[i]), max);
+			max = matsuri::Max(abs(mean[i]), max);
 
 		max = 1.0 / max;
 		for (int i = 0; i < settings.window_length / 2; i += 1)

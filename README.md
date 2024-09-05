@@ -1,6 +1,6 @@
 
-(Hama)Matsu
-===========
+Matsuri
+=======
 
 Synthesized TR-606 samples. Done so far:
 
@@ -19,8 +19,8 @@ Clone and compile code
 With `git`, `cmake` and a C++14 compiler, cloning and compilation should be:
 
 ```
-git clone --recurse-submodules https://github.com/baAlex/Matsu
-cd Matsu
+git clone --recurse-submodules https://github.com/baAlex/Matsuri
+cd Matsuri
 mkdir build
 cd build
 cmake ..
